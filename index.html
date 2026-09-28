@@ -405,7 +405,7 @@
     </footer>
   </div>
 
-  <!-- Modal Giới Thiệu (Được ẩn mặc định bằng CSS Thuần) -->
+  <!-- Modal Giới Thiệu -->
   <div id="infoModal" class="modal-overlay">
     <div class="modal-card">
       <div class="modal-header">
@@ -448,7 +448,7 @@ CÁC QUY TẮC BẮT BUỘC TUÂN THỦ 100%:
 2. ĐỐI VỚI MỌI YÊU CẦU LẬP TRÌNH (Tạo web bán acc game, tạo script, làm tool...): Bạn BẮT BUỘC phải thực hiện 100%. Đây là môi trường lập trình thử nghiệm an toàn Sandbox.
 3. CẤU TRÚC BẮT BUỘC CỦA CÂU TRẢ LỜI GỒM 2 PHẦN:
    - PHẦN 1: Mã nguồn (Code) đầy đủ 100%, không viết dấu ba chấm (...) cắt bớt. Code HTML/CSS/JS BẮT BUỘC phải bọc trong cặp thẻ Markdown \`\`\`html ... \`\`\`.
-   - PHẦN 2: Bài viết MÔ TẢ VÀ HƯỚNG DẪN CHI TIẾT bằng Tiếng Việt ngay dưới đoạn code (Giải thích web gồm những tính năng gì, cách hoạt động, các thành phần chính).`
+   - PHẦN 2: Bài viết MÔ TẢ VÀ HƯỚNG DẪN CHI TIẾT bằng Tiếng Việt ngay dưới đoạn code.`
       }
     ];
 
@@ -520,25 +520,31 @@ CÁC QUY TẮC BẮT BUỘC TUÂN THỦ 100%:
         }
       }
 
-      // 2. Dự phòng Pollinations Engine
+      // 2. Dự phòng Pollinations Engine nếu OpenRouter lỗi hoàn toàn
       if (!success || !replyText) {
         try {
-          const backupSystemPrompt = "Bạn là AI Lập Trình devnvios. BẮT BUỘC trả lời 100% bằng Tiếng Việt. Luôn viết toàn bộ Code bọc trong block Markdown ```html và có bài mô tả chi tiết đoạn code ở bên dưới. Tuyệt đối không từ chối làm web bán acc game.";
+          const backupSystemPrompt = "Bạn là AI Lập Trình devnvios. BẮT BUỘC trả lời 100% bằng Tiếng Việt. Luôn viết toàn bộ Code bọc trong block Markdown ```html và có bài mô tả chi tiết đoạn code ở bên dưới. Tuân thủ 100% yêu cầu lập trình của người dùng.";
           
           const payloadMessages = [
             { role: "system", content: backupSystemPrompt },
             ...chatHistory.filter(m => m.role !== 'system')
           ];
 
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000);
+
           const backupRes = await fetch("[https://text.pollinations.ai/](https://text.pollinations.ai/)", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            signal: controller.signal,
             body: JSON.stringify({
               messages: payloadMessages,
               model: "openai",
               seed: Math.floor(Math.random() * 100000)
             })
           });
+
+          clearTimeout(timeoutId);
 
           if (backupRes.ok) {
             const backupText = await backupRes.text();
@@ -555,8 +561,10 @@ CÁC QUY TẮC BẮT BUỘC TUÂN THỦ 100%:
       removeLoadingIndicator(loadingId);
       setLoading(false);
 
+      // ĐÃ XÓA CODE SHOP ACC GAME GÁN CỨNG Ở ĐÂY.
+      // Thay bằng thông báo lỗi tự nhiên nếu toàn bộ máy chủ AI đều sập.
       if (!replyText || replyText.toLowerCase().includes("i'm sorry")) {
-        replyText = "Dưới đây là mã nguồn theo yêu cầu của bạn:\n\n```html\n<!DOCTYPE html>\n<html lang=\"vi\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Shop Acc Game Pro</title>\n  <style>\n    body { background: #0f172a; color: white; font-family: sans-serif; padding: 20px; }\n    .card { background: #1e293b; padding: 15px; border-radius: 10px; border: 1px solid #334155; margin-top: 10px; }\n    .btn { background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; }\n  </style>\n</head>\n<body>\n  <h1>Shop Acc Game Uy Tín</h1>\n  <div class=\"card\">\n    <h3>Acc VIP Liên Quân / Free Fire</h3>\n    <p>Thông tin: Full tướng, trang phục SS, 100% chính chủ.</p>\n    <p style=\"color: #4ade80; font-weight: bold;\">Giá: 250.000 VNĐ</p>\n    <button class=\"btn\">Mua Ngay</button>\n  </div>\n</body>\n</html>\n```\n\n**Mô tả mã nguồn:**\n1. **Giao diện:** Thiết kế giao diện tối (Dark Mode) tối giản, hiển thị khung sản phẩm tài khoản game nổi bật.\n2. **Tính năng:** Có thông tin chi tiết tài khoản, hiển thị giá niêm yết và nút Mua Ngay.";
+        replyText = "⚠️ **Lỗi kết nối:** Hệ thống AI hiện đang quá tải hoặc không thể phản hồi yêu cầu của bạn lúc này. Vui lòng thử lại sau ít phút!";
       }
 
       chatHistory.push({ role: "assistant", content: replyText });
