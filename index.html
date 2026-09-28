@@ -360,7 +360,7 @@
         <div class="avatar-logo">dev</div>
         <div>
           <div class="header-title">devnvios.io.vn</div>
-          <div class="header-subtitle">Trợ Lý AI Thông Minh</div>
+          <div class="header-subtitle">Trợ Lý AI Thông Minh (Groq Speed)</div>
         </div>
       </div>
 
@@ -375,7 +375,7 @@
         <div class="bubble chat-allow-select">
           <p style="font-weight:700; margin-bottom: 4px;">Xin chào! 👋</p>
           <p style="margin-bottom: 6px;">Mình là <strong>Trợ lý AI devnvios</strong> thuộc hệ thống <strong>devnvios.io.vn</strong>.</p>
-          <p style="margin-bottom: 6px;">Mình có thể hỗ trợ bạn giải đáp thắc mắc, trò chuyện, lập trình và xử lý công việc hằng ngày. Bạn cần hỗ trợ gì hôm nay?</p>
+          <p style="margin-bottom: 6px;">Hệ thống đã được kết nối với Groq Cloud cực kỳ mượt mà và tốc độ cao. Bạn cần hỗ trợ gì hôm nay?</p>
         </div>
       </div>
     </main>
@@ -394,7 +394,7 @@
         </button>
       </form>
       <div class="footer-sub">
-        devnvios.io.vn — Trợ Lý AI Đa Năng
+        devnvios.io.vn — Trợ Lý AI Tốc Độ Cao
       </div>
     </footer>
   </div>
@@ -421,20 +421,19 @@
   </div>
 
   <script>
-    // Prompt AI bình thường, thân thiện và lịch sự
-    const SYSTEM_PROMPT = "Bạn là Trợ lý AI devnvios thông minh, thân thiện và hữu ích. Hãy trả lời các câu hỏi của người dùng một cách chính xác, tự nhiên bằng tiếng Việt.";
+    const SYSTEM_PROMPT = "Bạn là Trợ lý AI devnvios thông minh, hỗ trợ lập trình và trả lời thắc mắc một cách chuyên nghiệp, chính xác bằng tiếng Việt.";
 
     const chatHistory = [{ role: "system", content: SYSTEM_PROMPT }];
 
-    // Bạn có thể thay API Key mới vào đây nếu Key cũ hết hạn
-    const API_KEY = "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";
+    // API Key Groq của bạn
+    const API_KEY = "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";
 
-    // Danh sách các model AI ổn định nhất trên OpenRouter
+    // Các model AI chính thức từ Groq
     const MODELS = [
-      "google/gemini-2.0-flash-lite-001:free",
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "qwen/qwen-2.5-coder-32b-instruct:free",
-      "mistralai/mistral-7b-instruct:free"
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
+      "mixtral-8x7b-32768",
+      "gemma2-9b-it"
     ];
 
     const chatBox = document.getElementById('chatBox');
@@ -461,14 +460,14 @@
       let replyText = "";
       let success = false;
 
-      // Gọi API OpenRouter
+      // Gọi API trực tiếp tới Groq Cloud
       for (let i = 0; i < MODELS.length; i++) {
         const currentModel = MODELS[i];
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+          const timeoutId = setTimeout(() => controller.abort(), 20000); // Groq rất nhanh, 20s timeout
 
-          const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
             headers: {
               "Authorization": `Bearer ${API_KEY}`,
@@ -477,7 +476,8 @@
             signal: controller.signal,
             body: JSON.stringify({
               model: currentModel,
-              messages: chatHistory
+              messages: chatHistory,
+              temperature: 0.7
             })
           });
 
@@ -494,10 +494,10 @@
               }
             }
           } else {
-            console.warn(`Model ${currentModel} lỗi HTTP status:`, response.status);
+            console.warn(`Model ${currentModel} phản hồi lỗi: ${response.status}`);
           }
         } catch (err) {
-          console.warn(`Model ${currentModel} không phản hồi, thử model tiếp theo...`, err);
+          console.warn(`Model ${currentModel} gặp sự cố, thử model khác...`, err);
         }
       }
 
@@ -505,7 +505,7 @@
       setLoading(false);
 
       if (!success || !replyText) {
-        replyText = "Hiện tại kết nối máy chủ AI đang gặp gián đoạn (API Key có thể đã hết hạn). Bạn vui lòng thử lại sau ít phút nhé!";
+        replyText = "Hệ thống đang bận một chút, bạn vui lòng gửi lại câu hỏi nhé!";
       }
 
       chatHistory.push({ role: "assistant", content: replyText });
@@ -533,7 +533,7 @@
       div.innerHTML = `
         <div class="avatar-msg">AI</div>
         <div class="bubble" style="color: #64748B;">
-          Đang suy nghĩ... 
+          Đang xử lý... 
           <span class="typing-dots">
             <span class="dot"></span><span class="dot"></span><span class="dot"></span>
           </span>
