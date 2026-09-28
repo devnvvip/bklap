@@ -2,512 +2,411 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>devnvios.io.vn — Trợ Lý AI</title>
-  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shop Acc Game Uy Tín</title>
   <style>
+    :root {
+      --bg-main: #0F172A;
+      --bg-card: #1E293B;
+      --bg-hover: #334155;
+      --accent: #2563EB;
+      --accent-hover: #1D4ED8;
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --border: #334155;
+      --price: #22C55E;
+    }
+
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
-    }
-    
-    html, body {
-      height: 100%;
-      height: 100dvh;
-      background-color: #F8FAFC;
-      color: #0F172A;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      user-select: none;
-      -webkit-user-select: none;
-      overflow: hidden;
-      position: fixed;
-      width: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
-    .chat-allow-select {
-      user-select: text !important;
-      -webkit-user-select: text !important;
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      line-height: 1.5;
     }
 
-    .app-container {
+    /* Header */
+    header {
+      background-color: #020617;
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
       display: flex;
-      flex-direction: column;
-      height: 100dvh;
-      width: 100%;
-    }
-
-    .header {
-      background-color: #FFFFFF;
-      border-bottom: 1px solid #E2E8F0;
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
       justify-content: space-between;
-      z-index: 20;
-      flex-shrink: 0;
-    }
-
-    .header-brand {
-      display: flex;
       align-items: center;
-      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
     }
 
-    .avatar-logo {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      background-color: #0F172A;
+    .logo {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
       color: #FFFFFF;
+    }
+
+    .logo span {
+      color: #38BDF8;
+    }
+
+    .nav-btns {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 14px;
+      gap: 10px;
     }
 
-    .header-title {
-      font-size: 14px;
-      font-weight: 700;
-      color: #0F172A;
-      line-height: 1.2;
-    }
-
-    .header-subtitle {
-      font-size: 11px;
-      color: #64748B;
-      font-weight: 500;
-    }
-
-    .btn-info {
-      background-color: #F1F5F9;
-      color: #334155;
-      font-size: 12px;
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
       font-weight: 600;
-      padding: 6px 12px;
-      border-radius: 10px;
-      border: 1px solid #E2E8F0;
+      border: none;
       cursor: pointer;
+      transition: background 0.2s;
     }
 
-    .chat-box {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px;
-      background-color: #F8FAFC;
+    .btn-secondary {
+      background-color: var(--bg-hover);
+      color: var(--text-main);
+    }
+
+    .btn-secondary:hover {
+      background-color: #475569;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: #FFFFFF;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--accent-hover);
+    }
+
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+
+    /* Category Filter */
+    .filter-section {
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #E2E8F0;
+    }
+
+    .filter-list {
       display: flex;
-      flex-direction: column;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    .filter-btn {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .filter-btn.active {
+      background-color: var(--accent);
+      color: #FFFFFF;
+      border-color: var(--accent);
+    }
+
+    /* Acc Grid */
+    .acc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
       gap: 16px;
     }
 
-    .msg-row {
+    .acc-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
       display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      max-width: 92%;
+      flex-direction: column;
     }
 
-    .msg-row.user {
-      margin-left: auto;
-      flex-direction: row-reverse;
-    }
-
-    .avatar-msg {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background-color: #0F172A;
-      color: #FFFFFF;
-      font-size: 11px;
-      font-weight: 700;
+    .acc-thumb {
+      width: 100%;
+      height: 150px;
+      background-color: #020617;
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-shrink: 0;
-      margin-top: 2px;
+      color: var(--text-muted);
+      font-size: 12px;
+      position: relative;
     }
 
-    .avatar-msg.user {
-      background-color: #E2E8F0;
-      color: #334155;
+    .acc-tag {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: rgba(15, 23, 42, 0.85);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
     }
 
-    .bubble {
-      background-color: #FFFFFF;
-      border: 1px solid #E2E8F0;
-      border-radius: 16px;
-      padding: 12px 14px;
+    .acc-info {
+      padding: 14px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .acc-id {
       font-size: 14px;
-      line-height: 1.6;
-      color: #1E293B;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .acc-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
+    .acc-footer {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .acc-price {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--price);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
       width: 100%;
-      word-break: break-word;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
     }
 
-    .msg-row.user .bubble {
-      background-color: #0F172A;
-      color: #FFFFFF;
-      border: none;
+    .modal-overlay.active {
+      display: flex;
     }
 
-    .code-container {
-      background-color: #0F172A;
-      border-radius: 10px;
-      margin: 10px 0;
-      overflow: hidden;
-      border: 1px solid #334155;
+    .modal {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 380px;
+      padding: 20px;
+      position: relative;
     }
 
-    .code-header {
-      background-color: #1E293B;
-      padding: 6px 12px;
+    .modal-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      margin-bottom: 16px;
     }
 
-    .code-title {
-      font-family: monospace;
-      font-size: 11px;
-      color: #38BDF8;
-      text-transform: uppercase;
+    .modal-title {
+      font-size: 16px;
+      font-weight: 700;
     }
 
-    .copy-btn {
-      background-color: #334155;
-      color: #F1F5F9;
-      font-size: 11px;
-      padding: 4px 8px;
-      border-radius: 6px;
-      cursor: pointer;
+    .close-btn {
+      background: none;
       border: none;
+      color: var(--text-muted);
+      font-size: 18px;
+      cursor: pointer;
     }
 
-    pre code {
-      font-family: Consolas, Monaco, monospace !important;
-      font-size: 12px !important;
-      color: #E2E8F0;
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
       display: block;
-      padding: 12px;
-      overflow-x: auto !important;
-      white-space: pre !important;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
     }
 
-    .footer {
-      background-color: #FFFFFF;
-      border-top: 1px solid #E2E8F0;
-      padding: 10px 12px;
-      flex-shrink: 0;
-      z-index: 20;
-    }
-
-    .input-form {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      max-width: 900px;
-      margin: 0 auto;
-    }
-
-    .chat-input {
-      flex: 1;
-      background-color: #F1F5F9;
-      border: 1px solid transparent;
-      border-radius: 12px;
-      padding: 10px 14px;
-      font-size: 15px;
-      color: #0F172A;
+    .form-control {
+      width: 100%;
+      padding: 10px;
+      background-color: var(--bg-main);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: #FFFFFF;
+      font-size: 13px;
       outline: none;
     }
 
-    .send-btn {
-      background-color: #0F172A;
-      color: #FFFFFF;
-      border: none;
-      border-radius: 12px;
-      padding: 10px 16px;
-      font-weight: 600;
-      cursor: pointer;
-    }
-
-    .footer-sub {
-      text-align: center;
-      font-size: 10px;
-      color: #94A3B8;
-      margin-top: 6px;
-    }
-
-    .typing-dots {
-      display: inline-flex;
-      gap: 4px;
-    }
-    .dot {
-      width: 5px;
-      height: 5px;
-      background-color: #94A3B8;
-      border-radius: 50%;
-      animation: pulse 1.2s infinite ease-in-out;
-    }
-    .dot:nth-child(2) { animation-delay: 0.2s; }
-    .dot:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes pulse {
-      0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
-      40% { opacity: 1; transform: scale(1.2); }
+    .form-control:focus {
+      border-color: var(--accent);
     }
   </style>
 </head>
 <body>
 
-  <div class="app-container">
-    <header class="header">
-      <div class="header-brand">
-        <div class="avatar-logo">dev</div>
-        <div>
-          <div class="header-title">devnvios.io.vn</div>
-          <div class="header-subtitle">Trợ Lý AI Thông Minh</div>
+  <header>
+    <div class="logo">SHOP<span>GAME</span></div>
+    <div class="nav-btns">
+      <button class="btn btn-secondary" onclick="openModal('loginModal')">Đăng Nhập</button>
+      <button class="btn btn-primary" onclick="openModal('registerModal')">Đăng Ký</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="filter-section">
+      <div class="section-title">Danh Mục Tài Khoản</div>
+      <div class="filter-list">
+        <button class="filter-btn active">Tất Cả Game</button>
+        <button class="filter-btn">Free Fire</button>
+        <button class="filter-btn">Roblox Blox Fruit</button>
+        <button class="filter-btn">Liên Quân Mobile</button>
+        <button class="filter-btn">PUBG Mobile</button>
+      </div>
+    </div>
+
+    <div class="section-title">Tài Khoản Mới Cập Nhật</div>
+    <div class="acc-grid">
+      
+      <!-- Card 1 -->
+      <div class="acc-card">
+        <div class="acc-thumb">
+          <span class="acc-tag">Blox Fruit</span>
+          [Ảnh xem trước Acc]
+        </div>
+        <div class="acc-info">
+          <div class="acc-id">Mã Acc: #10293</div>
+          <div class="acc-desc">Level Max, Tộc V4 Full Tiên Tộc, Melee Godhuman, Cặp Kiếm Cursed Dual Katana.</div>
+          <div class="acc-footer">
+            <div class="acc-price">150.000đ</div>
+            <button class="btn btn-primary" onclick="alert('Đã chọn mua Acc #10293')">Mua Ngay</button>
+          </div>
         </div>
       </div>
 
-      <button onclick="alert('devnvios.io.vn — Dịch vụ lập trình & AI')" class="btn-info">
-        ℹ️ Giới Thiệu
-      </button>
-    </header>
-
-    <main id="chatBox" class="chat-box">
-      <div class="msg-row">
-        <div class="avatar-msg">AI</div>
-        <div class="bubble chat-allow-select">
-          <p style="font-weight:700; margin-bottom: 4px;">Xin chào! 👋</p>
-          <p>Mình là <strong>Trợ lý AI devnvios</strong>. Bạn cần hỗ trợ gì hôm nay?</p>
+      <!-- Card 2 -->
+      <div class="acc-card">
+        <div class="acc-thumb">
+          <span class="acc-tag">Free Fire</span>
+          [Ảnh xem trước Acc]
+        </div>
+        <div class="acc-info">
+          <div class="acc-id">Mã Acc: #88201</div>
+          <div class="acc-desc">Full Keo Quỷ, AK Rồng Xanh Level 7, Trang phục Quỷ Đường Phố.</div>
+          <div class="acc-footer">
+            <div class="acc-price">350.000đ</div>
+            <button class="btn btn-primary" onclick="alert('Đã chọn mua Acc #88201')">Mua Ngay</button>
+          </div>
         </div>
       </div>
-    </main>
 
-    <footer class="footer">
-      <form id="chatForm" onsubmit="handleSend(event)" class="input-form">
-        <input 
-          type="text" 
-          id="userInput" 
-          placeholder="Nhập tin nhắn..." 
-          autocomplete="off"
-          class="chat-input chat-allow-select"
-        />
-        <button type="submit" id="sendBtn" class="send-btn">
-          ➤
-        </button>
+      <!-- Card 3 -->
+      <div class="acc-card">
+        <div class="acc-thumb">
+          <span class="acc-tag">Liên Quân</span>
+          [Ảnh xem trước Acc]
+        </div>
+        <div class="acc-info">
+          <div class="acc-id">Mã Acc: #44912</div>
+          <div class="acc-desc">Rank Cao Thủ, 110 Tướng 250 Trang phục, Nakroth Thứ Nguyên Vệ Thần.</div>
+          <div class="acc-footer">
+            <div class="acc-price">500.000đ</div>
+            <button class="btn btn-primary" onclick="alert('Đã chọn mua Acc #44912')">Mua Ngay</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal Đăng Nhập -->
+  <div class="modal-overlay" id="loginModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Đăng Nhập</div>
+        <button class="close-btn" onclick="closeModal('loginModal')">✕</button>
+      </div>
+      <form onsubmit="event.preventDefault(); alert('Đăng nhập thành công'); closeModal('loginModal');">
+        <div class="form-group">
+          <label>Tên đăng nhập / Email</label>
+          <input type="text" class="form-control" placeholder="Nhập tài khoản..." required>
+        </div>
+        <div class="form-group">
+          <label>Mật khẩu</label>
+          <input type="password" class="form-control" placeholder="Nhập mật khẩu..." required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">Xác Nhận</button>
       </form>
-      <div class="footer-sub">
-        devnvios.io.vn — Trợ Lý AI Tốc Độ Cao
+    </div>
+  </div>
+
+  <!-- Modal Đăng Ký -->
+  <div class="modal-overlay" id="registerModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Đăng Ký Tài Khoản</div>
+        <button class="close-btn" onclick="closeModal('registerModal')">✕</button>
       </div>
-    </footer>
+      <form onsubmit="event.preventDefault(); alert('Đăng ký thành công'); closeModal('registerModal');">
+        <div class="form-group">
+          <label>Tên đăng nhập</label>
+          <input type="text" class="form-control" placeholder="Tên tài khoản..." required>
+        </div>
+        <div class="form-group">
+          <label>Mật khẩu</label>
+          <input type="password" class="form-control" placeholder="Tạo mật khẩu..." required>
+        </div>
+        <div class="form-group">
+          <label>Xác nhận mật khẩu</label>
+          <input type="password" class="form-control" placeholder="Nhập lại mật khẩu..." required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">Tạo Tài Khoản</button>
+      </form>
+    </div>
   </div>
 
   <script>
-    const GEMINI_API_KEY = "AQ.Ab8RN6I3u-Saozo3Y5d4sqFSmMdsh7jOLBMea6NVj5qnvZC9yQ";
-    const SYSTEM_PROMPT = "Bạn là Trợ lý AI devnvios thông minh, hỗ trợ lập trình và giải đáp thắc mắc chuyên nghiệp bằng tiếng Việt.";
-
-    const contentsHistory = [];
-
-    const chatBox = document.getElementById('chatBox');
-    const userInput = document.getElementById('userInput');
-    const sendBtn = document.getElementById('sendBtn');
-
-    async function handleSend(e) {
-      e.preventDefault();
-      const text = userInput.value.trim();
-      if (!text) return;
-
-      appendUserMessage(text);
-      userInput.value = '';
-      userInput.blur();
-
-      setLoading(true);
-      const loadingId = appendLoadingIndicator();
-
-      contentsHistory.push({
-        role: "user",
-        parts: [{ text: text }]
-      });
-
-      try {
-        // Cập nhật tên model gemini-3.8-flash tại đây
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_API_KEY}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            contents: contentsHistory,
-            systemInstruction: {
-              parts: [{ text: SYSTEM_PROMPT }]
-            }
-          })
-        });
-
-        removeLoadingIndicator(loadingId);
-        setLoading(false);
-
-        if (!response.ok) {
-          const errData = await response.json();
-          console.error("Gemini Response Error:", errData);
-          const errMsg = errData?.error?.message || "Lỗi phản hồi API!";
-          appendAIMessage(`Lỗi phản hồi từ Google: ${errMsg}`);
-          contentsHistory.pop();
-          return;
-        }
-
-        const data = await response.json();
-        const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-        if (replyText) {
-          contentsHistory.push({
-            role: "model",
-            parts: [{ text: replyText }]
-          });
-          appendAIMessage(replyText);
-        } else {
-          appendAIMessage("Không nhận được phản hồi từ AI!");
-        }
-
-      } catch (err) {
-        console.error("Fetch Error:", err);
-        removeLoadingIndicator(loadingId);
-        setLoading(false);
-        appendAIMessage("Lỗi kết nối mạng!");
-        contentsHistory.pop();
-      }
+    function openModal(id) {
+      document.getElementById(id).classList.add('active');
     }
-
-    function appendUserMessage(msg) {
-      const div = document.createElement('div');
-      div.className = "msg-row user";
-      div.innerHTML = `
-        <div class="avatar-msg user">Bạn</div>
-        <div class="bubble chat-allow-select">
-          ${escapeHTML(msg)}
-        </div>
-      `;
-      chatBox.appendChild(div);
-      scrollToBottom();
-    }
-
-    function appendLoadingIndicator() {
-      const id = 'loading-' + Date.now();
-      const div = document.createElement('div');
-      div.id = id;
-      div.className = "msg-row";
-      div.innerHTML = `
-        <div class="avatar-msg">AI</div>
-        <div class="bubble" style="color: #64748B;">
-          Đang suy nghĩ... 
-          <span class="typing-dots">
-            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-          </span>
-        </div>
-      `;
-      chatBox.appendChild(div);
-      scrollToBottom();
-      return id;
-    }
-
-    function removeLoadingIndicator(id) {
-      const el = document.getElementById(id);
-      if (el) el.remove();
-    }
-
-    function appendAIMessage(rawText) {
-      const div = document.createElement('div');
-      div.className = "msg-row";
-      const formattedHTML = formatMarkdown(rawText);
-
-      div.innerHTML = `
-        <div class="avatar-msg">AI</div>
-        <div class="bubble chat-allow-select">
-          ${formattedHTML}
-        </div>
-      `;
-      chatBox.appendChild(div);
-      scrollToBottom();
-    }
-
-    function formatMarkdown(text) {
-      const codeBlocks = [];
-
-      let safeText = text.replace(/```(\w+)?\n([\s\S]*?)```/g, function(match, lang, code) {
-        const index = codeBlocks.length;
-        codeBlocks.push({ lang: lang || 'code', code: code });
-        return `___CODE_BLOCK_${index}___`;
-      });
-
-      safeText = escapeHTML(safeText);
-
-      safeText = safeText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      safeText = safeText.replace(/\n/g, '<br>');
-
-      codeBlocks.forEach((item, index) => {
-        const codeId = 'code-' + Math.random().toString(36).substr(2, 9);
-        const codeContainerHtml = `
-          <div class="code-container">
-            <div class="code-header">
-              <span class="code-title">${escapeHTML(item.lang)}</span>
-              <button class="copy-btn" onclick="copyCodeBlock('${codeId}', this)">Sao chép</button>
-            </div>
-            <pre><code id="${codeId}">${escapeHTML(item.code)}</code></pre>
-          </div>`;
-        safeText = safeText.replace(`___CODE_BLOCK_${index}___`, codeContainerHtml);
-      });
-
-      return safeText;
-    }
-
-    function copyCodeBlock(elementId, btnElement) {
-      const codeElement = document.getElementById(elementId);
-      if (!codeElement) return;
-
-      const codeText = codeElement.innerText || codeElement.textContent;
-
-      const textarea = document.createElement('textarea');
-      textarea.value = codeText;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      try {
-        document.execCommand('copy');
-        btnElement.innerText = "Đã chép ✓";
-        btnElement.style.backgroundColor = "#059669";
-        setTimeout(() => {
-          btnElement.innerText = "Sao chép";
-          btnElement.style.backgroundColor = "#334155";
-        }, 2000);
-      } catch (err) {
-        alert('Lỗi sao chép');
-      }
-      document.body.removeChild(textarea);
-    }
-
-    function setLoading(isLoading) {
-      sendBtn.disabled = isLoading;
-      userInput.disabled = isLoading;
-      sendBtn.style.opacity = isLoading ? '0.5' : '1';
-    }
-
-    function scrollToBottom() {
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    function escapeHTML(str) {
-      return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('active');
     }
   </script>
 </body>
