@@ -1,413 +1,513 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shop Acc Game Uy Tín</title>
-  <style>
-    :root {
-      --bg-main: #0F172A;
-      --bg-card: #1E293B;
-      --bg-hover: #334155;
-      --accent: #2563EB;
-      --accent-hover: #1D4ED8;
-      --text-main: #F8FAFC;
-      --text-muted: #94A3B8;
-      --border: #334155;
-      --price: #22C55E;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tiệm Trái Cây Nhỏ - Bản Hoàn Thiện</title>
+    <!-- Font chữ bo tròn siêu dễ thương -->
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #fff0f5;      /* Hồng phấn nhạt siêu cute */
+            --bg-panel: #ffffff;
+            --color-text: #4a3b32;   /* Nâu cafe */
+            --color-text-light: #9a8c84;
+            
+            --accent-pink: #ffb7c5;  /* Hồng pastel đậm hơn chút */
+            --accent-pink-dark: #ff8da1;
+            --accent-green: #a8e6cf; /* Xanh lá mint */
+            --accent-green-dark: #56c596;
+            --accent-yellow: #ffdfba;
+            --accent-brown: #d4a373; 
+            
+            --ui-border: #f4d3d8;
+            --shadow-soft: 0 8px 24px rgba(255, 183, 197, 0.4);
+        }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
 
-    body {
-      background-color: var(--bg-main);
-      color: var(--text-main);
-      line-height: 1.5;
-    }
+        body {
+            font-family: 'Baloo 2', sans-serif;
+            background-color: #2c3e50;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden; color: var(--color-text);
+        }
 
-    /* Header */
-    header {
-      background-color: #020617;
-      border-bottom: 1px solid var(--border);
-      padding: 14px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
+        #game-container {
+            width: 100%; max-width: 414px; height: 100vh; max-height: 896px;
+            background-color: var(--bg-main); position: relative; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
 
-    .logo {
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: 0.5px;
-      color: #FFFFFF;
-    }
+        @media (min-width: 420px) {
+            #game-container { height: 90vh; border-radius: 40px; border: 12px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        }
 
-    .logo span {
-      color: #38BDF8;
-    }
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; flex-direction: column; background-color: var(--bg-main); z-index: 10;
+        }
+        .screen.active { display: flex; }
 
-    .nav-btns {
-      display: flex;
-      gap: 10px;
-    }
+        /* Animation */
+        @keyframes bounceIn { 0% { transform: scale(0.8); opacity: 0; } 60% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); } }
+        @keyframes slideOut { to { transform: translateX(-120%); opacity: 0; } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
-    .btn {
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
+        /* UI Chung */
+        .btn-primary {
+            background-color: var(--accent-pink); color: #fff; border: none;
+            padding: 15px 30px; border-radius: 25px; font-size: 20px; font-weight: 800;
+            cursor: pointer; box-shadow: 0 6px 0 var(--accent-pink-dark);
+            transition: all 0.1s; font-family: 'Baloo 2', sans-serif;
+        }
+        .btn-primary:active { transform: translateY(6px); box-shadow: 0 0 0 var(--accent-pink-dark); }
+        
+        .header-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 20px; background-color: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px); z-index: 20; border-bottom: 2px solid var(--ui-border);
+        }
+        .money-display { font-size: 24px; font-weight: 800; color: var(--accent-green-dark); background: #fff; padding: 5px 15px; border-radius: 20px; border: 2px solid var(--accent-green-dark); }
+        
+        /* Cửa hàng Màn Hình 1 */
+        .shop-building { position: relative; margin: auto; width: 320px; height: 350px; text-align: center; }
+        .shop-building img { width: 100%; animation: float 3s ease-in-out infinite; }
+        .logo-text { font-size: 38px; color: var(--accent-pink-dark); font-weight: 800; text-shadow: 2px 2px 0px #fff; margin-top: -30px; }
 
-    .btn-secondary {
-      background-color: var(--bg-hover);
-      color: var(--text-main);
-    }
+        /* Khu vực khách hàng */
+        .customer-zone {
+            display: flex; padding: 20px; gap: 15px; margin-top: 10px; align-items: flex-start;
+        }
+        .avatar-container {
+            width: 110px; height: 110px; background: #fff; border-radius: 50%;
+            border: 4px solid var(--accent-pink); box-shadow: var(--shadow-soft);
+            overflow: hidden; flex-shrink: 0; animation: bounceIn 0.4s ease-out;
+        }
+        .avatar-container img { width: 100%; height: 100%; object-fit: cover; }
+        .avatar-container.leaving { animation: slideOut 0.5s forwards; }
 
-    .btn-secondary:hover {
-      background-color: #475569;
-    }
+        .bubble-wrapper {
+            position: relative; flex: 1; animation: bounceIn 0.5s ease-out;
+        }
+        .speech-bubble {
+            background: #fff; border: 3px solid var(--accent-pink); border-radius: 20px;
+            padding: 15px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 0 var(--accent-pink);
+            position: relative;
+        }
+        .speech-bubble::before { /* Mũi nhọn bóng thoại */
+            content: ''; position: absolute; left: -12px; top: 25px;
+            border-top: 10px solid transparent; border-bottom: 10px solid transparent; border-right: 10px solid var(--accent-pink);
+        }
 
-    .btn-primary {
-      background-color: var(--accent);
-      color: #FFFFFF;
-    }
+        /* Đồng hồ hình tròn */
+        .timer-container {
+            position: absolute; right: -10px; top: -20px; width: 45px; height: 45px;
+            background: #fff; border-radius: 50%; box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .circular-chart { display: block; margin: 0 auto; max-width: 100%; max-height: 250px; }
+        .circle-bg { fill: none; stroke: #eee; stroke-width: 3.8; }
+        .circle { fill: none; stroke-width: 2.8; stroke-linecap: round; transition: stroke-dasharray 0.3s linear, stroke 0.3s; }
+        
+        /* Tủ Trái Cây (Để bấm bán hàng) */
+        .fruit-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 20px;
+            background: var(--bg-panel); border-radius: 30px 30px 0 0; border-top: 4px solid var(--ui-border);
+            margin-top: auto; box-shadow: 0 -5px 20px rgba(0,0,0,0.05);
+        }
+        .fruit-item {
+            background: var(--bg-main); border: 2px solid var(--ui-border); border-radius: 20px;
+            padding: 15px; text-align: center; cursor: pointer; position: relative;
+            transition: transform 0.1s, border-color 0.1s;
+        }
+        .fruit-item:active { transform: scale(0.95); border-color: var(--accent-pink); }
+        .fruit-emoji { font-size: 45px; margin-bottom: 5px; }
+        .fruit-stock {
+            position: absolute; top: -10px; right: -10px; background: var(--accent-pink-dark); color: #fff;
+            width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            font-weight: bold; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .fruit-item.empty { filter: grayscale(100%); opacity: 0.6; }
 
-    .btn-primary:hover {
-      background-color: var(--accent-hover);
-    }
-
-    /* Container */
-    .container {
-      max-width: 1200px;
-      margin: 24px auto;
-      padding: 0 16px;
-    }
-
-    /* Category Filter */
-    .filter-section {
-      margin-bottom: 24px;
-    }
-
-    .section-title {
-      font-size: 16px;
-      font-weight: 700;
-      margin-bottom: 12px;
-      color: #E2E8F0;
-    }
-
-    .filter-list {
-      display: flex;
-      gap: 10px;
-      overflow-x: auto;
-      padding-bottom: 8px;
-    }
-
-    .filter-btn {
-      background-color: var(--bg-card);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 13px;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-
-    .filter-btn.active {
-      background-color: var(--accent);
-      color: #FFFFFF;
-      border-color: var(--accent);
-    }
-
-    /* Acc Grid */
-    .acc-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 16px;
-    }
-
-    .acc-card {
-      background-color: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .acc-thumb {
-      width: 100%;
-      height: 150px;
-      background-color: #020617;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted);
-      font-size: 12px;
-      position: relative;
-    }
-
-    .acc-tag {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background-color: rgba(15, 23, 42, 0.85);
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: 600;
-    }
-
-    .acc-info {
-      padding: 14px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .acc-id {
-      font-size: 14px;
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
-
-    .acc-desc {
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-bottom: 12px;
-      line-height: 1.4;
-    }
-
-    .acc-footer {
-      margin-top: auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding-top: 10px;
-      border-top: 1px solid var(--border);
-    }
-
-    .acc-price {
-      font-size: 15px;
-      font-weight: 700;
-      color: var(--price);
-    }
-
-    /* Modal */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-    }
-
-    .modal-overlay.active {
-      display: flex;
-    }
-
-    .modal {
-      background-color: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      width: 100%;
-      max-width: 380px;
-      padding: 20px;
-      position: relative;
-    }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .modal-title {
-      font-size: 16px;
-      font-weight: 700;
-    }
-
-    .close-btn {
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      font-size: 18px;
-      cursor: pointer;
-    }
-
-    .form-group {
-      margin-bottom: 12px;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-    }
-
-    .form-control {
-      width: 100%;
-      padding: 10px;
-      background-color: var(--bg-main);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: #FFFFFF;
-      font-size: 13px;
-      outline: none;
-    }
-
-    .form-control:focus {
-      border-color: var(--accent);
-    }
-  </style>
+        /* Modal Cuối Ngày */
+        .modal {
+            position: absolute; top:0; left:0; width: 100%; height: 100%;
+            background: rgba(44, 62, 80, 0.8); backdrop-filter: blur(5px);
+            display: none; justify-content: center; align-items: center; z-index: 50;
+        }
+        .modal-content {
+            background: #fff; width: 85%; border-radius: 30px; padding: 30px 20px;
+            text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.3); animation: bounceIn 0.4s;
+            border: 4px solid var(--accent-pink);
+        }
+        .review-box {
+            background: var(--bg-main); border-radius: 20px; padding: 15px; margin: 20px 0;
+            text-align: left; border: 2px dashed var(--accent-pink-dark);
+        }
+        .stars-icon { color: #ffca28; font-size: 18px; text-shadow: 1px 1px 0 #e6a800; }
+        
+        /* Kho Hàng */
+        .mng-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #fff; padding: 10px 15px; border-radius: 20px; margin-bottom: 10px;
+            border: 2px solid var(--ui-border);
+        }
+        .buy-btn {
+            background: var(--accent-green); border: none; width: 35px; height: 35px; border-radius: 10px;
+            font-size: 20px; font-weight: bold; color: var(--color-text); cursor: pointer;
+        }
+        .buy-btn:active { transform: scale(0.9); }
+    </style>
 </head>
 <body>
 
-  <header>
-    <div class="logo">SHOP<span>GAME</span></div>
-    <div class="nav-btns">
-      <button class="btn btn-secondary" onclick="openModal('loginModal')">Đăng Nhập</button>
-      <button class="btn btn-primary" onclick="openModal('registerModal')">Đăng Ký</button>
-    </div>
-  </header>
-
-  <div class="container">
-    <div class="filter-section">
-      <div class="section-title">Danh Mục Tài Khoản</div>
-      <div class="filter-list">
-        <button class="filter-btn active">Tất Cả Game</button>
-        <button class="filter-btn">Free Fire</button>
-        <button class="filter-btn">Roblox Blox Fruit</button>
-        <button class="filter-btn">Liên Quân Mobile</button>
-        <button class="filter-btn">PUBG Mobile</button>
-      </div>
+<div id="game-container">
+    
+    <!-- MÀN HÌNH BẮT ĐẦU -->
+    <div id="screen-start" class="screen active" style="justify-content: center; align-items: center; background: linear-gradient(180deg, #fff0f5 0%, #ffdfba 100%);">
+        <div class="shop-building">
+            <!-- Icon cửa hàng bằng emoji khổng lồ cho cutie -->
+            <div style="font-size: 120px; margin-bottom: -20px;">🏪</div>
+            <h1 class="logo-text">Tiệm Trái Cây<br>Mini</h1>
+        </div>
+        <button class="btn-primary" onclick="switchScreen('screen-management')">Bắt Đầu Bán Hàng 🌸</button>
     </div>
 
-    <div class="section-title">Tài Khoản Mới Cập Nhật</div>
-    <div class="acc-grid">
-      
-      <!-- Card 1 -->
-      <div class="acc-card">
-        <div class="acc-thumb">
-          <span class="acc-tag">Blox Fruit</span>
-          [Ảnh xem trước Acc]
+    <!-- MÀN HÌNH QUẢN LÝ / NHẬP HÀNG -->
+    <div id="screen-management" class="screen">
+        <div class="header-bar">
+            <div>
+                <h3 style="color: var(--accent-pink-dark)">Chuẩn bị</h3>
+                <div id="mng-day" style="font-size: 14px; font-weight: bold; color: var(--color-text-light)">Ngày 1</div>
+            </div>
+            <div class="money-display" id="mng-money">100k</div>
         </div>
-        <div class="acc-info">
-          <div class="acc-id">Mã Acc: #10293</div>
-          <div class="acc-desc">Level Max, Tộc V4 Full Tiên Tộc, Melee Godhuman, Cặp Kiếm Cursed Dual Katana.</div>
-          <div class="acc-footer">
-            <div class="acc-price">150.000đ</div>
-            <button class="btn btn-primary" onclick="alert('Đã chọn mua Acc #10293')">Mua Ngay</button>
-          </div>
+        <div style="padding: 20px; flex: 1; overflow-y: auto;">
+            <h2 style="text-align: center; margin-bottom: 5px;">Chợ Đầu Mối</h2>
+            <p style="text-align: center; color: var(--color-text-light); font-size: 14px; margin-bottom: 20px;">Nhấn dấu + để nhập hàng lên kệ nhé!</p>
+            <div id="inventory-list"></div>
         </div>
-      </div>
-
-      <!-- Card 2 -->
-      <div class="acc-card">
-        <div class="acc-thumb">
-          <span class="acc-tag">Free Fire</span>
-          [Ảnh xem trước Acc]
+        <div style="padding: 20px; background: #fff; border-top: 2px solid var(--ui-border);">
+            <button class="btn-primary" style="width: 100%;" onclick="openShop()">Mở Cửa Đón Khách 🛒</button>
         </div>
-        <div class="acc-info">
-          <div class="acc-id">Mã Acc: #88201</div>
-          <div class="acc-desc">Full Keo Quỷ, AK Rồng Xanh Level 7, Trang phục Quỷ Đường Phố.</div>
-          <div class="acc-footer">
-            <div class="acc-price">350.000đ</div>
-            <button class="btn btn-primary" onclick="alert('Đã chọn mua Acc #88201')">Mua Ngay</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Card 3 -->
-      <div class="acc-card">
-        <div class="acc-thumb">
-          <span class="acc-tag">Liên Quân</span>
-          [Ảnh xem trước Acc]
-        </div>
-        <div class="acc-info">
-          <div class="acc-id">Mã Acc: #44912</div>
-          <div class="acc-desc">Rank Cao Thủ, 110 Tướng 250 Trang phục, Nakroth Thứ Nguyên Vệ Thần.</div>
-          <div class="acc-footer">
-            <div class="acc-price">500.000đ</div>
-            <button class="btn btn-primary" onclick="alert('Đã chọn mua Acc #44912')">Mua Ngay</button>
-          </div>
-        </div>
-      </div>
-
     </div>
-  </div>
 
-  <!-- Modal Đăng Nhập -->
-  <div class="modal-overlay" id="loginModal">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title">Đăng Nhập</div>
-        <button class="close-btn" onclick="closeModal('loginModal')">✕</button>
-      </div>
-      <form onsubmit="event.preventDefault(); alert('Đăng nhập thành công'); closeModal('loginModal');">
-        <div class="form-group">
-          <label>Tên đăng nhập / Email</label>
-          <input type="text" class="form-control" placeholder="Nhập tài khoản..." required>
+    <!-- MÀN HÌNH CHƠI GAME -->
+    <div id="screen-gameplay" class="screen">
+        <div class="header-bar">
+            <div>
+                <h3 id="game-day" style="color: var(--accent-pink-dark)">Ngày 1</h3>
+                <div id="game-time" style="font-size: 16px; font-weight: bold; color: var(--color-text-light)">08:00</div>
+            </div>
+            <div style="text-align: right;">
+                <div class="money-display" id="game-money">100k</div>
+                <div class="stars-icon" id="game-stars" style="font-size: 14px; margin-top: 5px;">⭐⭐⭐⭐⭐</div>
+            </div>
         </div>
-        <div class="form-group">
-          <label>Mật khẩu</label>
-          <input type="password" class="form-control" placeholder="Nhập mật khẩu..." required>
+
+        <!-- KHU VỰC KHÁCH ĐỨNG -->
+        <div style="flex: 1; position: relative;">
+            <div class="customer-zone" id="customer-zone" style="display: none;">
+                <!-- Dùng API lấy ảnh anime ngẫu nhiên -->
+                <div class="avatar-container" id="customer-avatar">
+                    <img id="avatar-img" src="" alt="Khách hàng">
+                </div>
+                
+                <div class="bubble-wrapper">
+                    <div class="speech-bubble" id="customer-dialogue">
+                        Bán cho mình 1 quả Táo nhé!
+                    </div>
+                    <!-- Vòng tròn đếm ngược -->
+                    <div class="timer-container">
+                        <svg viewBox="0 0 36 36" class="circular-chart">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path class="circle" id="timer-circle" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" stroke="#56c596" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">Xác Nhận</button>
-      </form>
+
+        <!-- QUẦY BÁN HÀNG CỦA BẠN (Click vào đây để bán) -->
+        <div style="text-align: center; font-size: 14px; color: var(--color-text-light); margin-bottom: 10px; font-weight: 600;">
+            👇 Khách gọi món nào, bấm vào món đó để bán 👇
+        </div>
+        <div class="fruit-grid" id="fruit-grid">
+            <!-- Render bằng JS -->
+        </div>
     </div>
-  </div>
 
-  <!-- Modal Đăng Ký -->
-  <div class="modal-overlay" id="registerModal">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title">Đăng Ký Tài Khoản</div>
-        <button class="close-btn" onclick="closeModal('registerModal')">✕</button>
-      </div>
-      <form onsubmit="event.preventDefault(); alert('Đăng ký thành công'); closeModal('registerModal');">
-        <div class="form-group">
-          <label>Tên đăng nhập</label>
-          <input type="text" class="form-control" placeholder="Tên tài khoản..." required>
+    <!-- POPUP TỔNG KẾT NGÀY -->
+    <div class="modal" id="modal-end-day">
+        <div class="modal-content">
+            <h1 style="color: var(--accent-pink-dark); margin-bottom: 10px;">Đóng Cửa! 🌙</h1>
+            <h3 style="color: var(--color-text-light);">Tổng kết Ngày <span id="summary-day">1</span></h3>
+            
+            <div style="display: flex; justify-content: space-between; font-size: 18px; margin-top: 15px; font-weight: bold;">
+                <span>Tiền thu:</span> <span style="color: var(--accent-green-dark)">+<span id="sum-revenue">0</span>k</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: bold; border-bottom: 2px dashed #ccc; padding-bottom: 15px; margin-bottom: 15px;">
+                <span>Tiền nhập:</span> <span style="color: var(--accent-pink-dark)">-<span id="sum-cost">0</span>k</span>
+            </div>
+            
+            <h4 style="text-align: left; color: var(--accent-pink-dark);">💌 Đánh giá nổi bật:</h4>
+            <div class="review-box">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <strong id="review-name" style="color: var(--accent-brown)">@khachhang</strong>
+                    <span class="stars-icon" id="review-stars">⭐⭐⭐⭐⭐</span>
+                </div>
+                <div id="review-text" style="font-style: italic; font-size: 14px;">"Shop siêu cấp dễ thương!"</div>
+            </div>
+
+            <button class="btn-primary" style="width: 100%; margin-top: 10px;" onclick="nextDay()">Ngày Tiếp Theo</button>
         </div>
-        <div class="form-group">
-          <label>Mật khẩu</label>
-          <input type="password" class="form-control" placeholder="Tạo mật khẩu..." required>
-        </div>
-        <div class="form-group">
-          <label>Xác nhận mật khẩu</label>
-          <input type="password" class="form-control" placeholder="Nhập lại mật khẩu..." required>
-        </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 8px;">Tạo Tài Khoản</button>
-      </form>
     </div>
-  </div>
 
-  <script>
-    function openModal(id) {
-      document.getElementById(id).classList.add('active');
+</div>
+
+<script>
+    // Dữ liệu trái cây
+    const FRUITS = [
+        { id: 'xoai', name: 'Xoài', emoji: '🥭', buy: 15, sell: 30 },
+        { id: 'tao', name: 'Táo', emoji: '🍎', buy: 20, sell: 35 },
+        { id: 'chuoi', name: 'Chuối', emoji: '🍌', buy: 10, sell: 20 },
+        { id: 'saurieng', name: 'Sầu Riêng', emoji: '🪨', buy: 50, sell: 100 } // Icon thay thế
+    ];
+
+    // Seed name để tạo ảnh Anime ngẫu nhiên từ API DiceBear
+    const ANIME_SEEDS = ['Toby', 'Felix', 'Aneka', 'Oliver', 'Mia', 'Coco', 'Lola', 'Sam', 'Buster', 'Luna'];
+
+    const DIALOGUES = [
+        "Lấy cho mình 1 quả {fruit} nha shop!",
+        "Chủ quán ơi, {fruit} trông ngon quá, bán mình 1 quả nhé.",
+        "Mình thèm {fruit} quá, lấy 1 trái đi ạ.",
+        "Nhanh tay gói cho mình quả {fruit} với!"
+    ];
+
+    const REVIEWS_GOOD = [
+        "Chủ shop nhiệt tình, {fruit} tươi rói, cho 10 điểm!",
+        "Quán dễ thương xỉu, vừa vào mua {fruit} đã thấy vui rồi.",
+        "Bấm phát chốt đơn luôn, siêu nhanh. Sẽ ủng hộ dài dài!",
+        "Ngon lành cành đào, {fruit} ở đây là số 1."
+    ];
+
+    const REVIEWS_BAD = [
+        "Khách đợi mòn mỏi thì hết thanh thời gian, dẹp quán đi!",
+        "Hỏi mua {fruit} mà giao nhầm, chủ quán bị lác à?",
+        "Hết hàng mà không chịu cất bảng, làm mất công hỏi mua {fruit}.",
+        "Tệ thật sự, thái độ lề mề, không bao giờ quay lại."
+    ];
+
+    let state = {
+        day: 1, money: 100,
+        inventory: { 'xoai': 0, 'tao': 0, 'chuoi': 0, 'saurieng': 0 },
+        dailyRev: 0, dailyCost: 0,
+        time: 8 * 60, clockInterval: null,
+        customer: null, patienceTimer: null, patience: 100,
+        totalStars: 5, reviewCount: 1, lastReview: null
+    };
+
+    const $ = id => document.getElementById(id);
+    const formatMoney = m => m + 'k';
+    
+    function switchScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        $(id).classList.add('active');
+        if(id === 'screen-management') renderInventory();
+        updateUI();
     }
-    function closeModal(id) {
-      document.getElementById(id).classList.remove('active');
+
+    function updateUI() {
+        $('mng-money').innerText = formatMoney(state.money);
+        $('game-money').innerText = formatMoney(state.money);$('mng-day').innerText = 'Ngày ' + state.day;
+        $('game-day').innerText = 'Ngày ' + state.day;
+        
+        let avgStar = Math.round(state.totalStars / state.reviewCount);
+        $('game-stars').innerText = '⭐'.repeat(avgStar);
     }
-  </script>
+
+    // --- QUẢN LÝ KHO ---
+    function renderInventory() {
+        const list = $('inventory-list');
+        list.innerHTML = '';
+        FRUITS.forEach(f => {
+            list.innerHTML += `
+                <div class="mng-item">
+                    <div style="font-size: 30px;">${f.emoji}</div>
+                    <div style="flex: 1; margin-left: 15px;">
+                        <div style="font-weight: 800; font-size: 18px;">${f.name}</div>
+                        <div style="font-size: 13px; color: var(--color-text-light);">Kho: <b style="color:var(--accent-pink-dark)" id="stock-${f.id}">${state.inventory[f.id]}</b> | Mua: ${f.buy}k</div>
+                    </div>
+                    <button class="buy-btn" onclick="buyItem('${f.id}', ${f.buy})">+</button>
+                </div>
+            `;
+        });
+    }
+
+    function buyItem(id, price) {
+        if(state.money >= price) {
+            state.money -= price;
+            state.dailyCost += price;
+            state.inventory[id]++;
+            $(`stock-${id}`).innerText = state.inventory[id];
+            updateUI();
+        } else {
+            alert("Tiệm nghèo rồi, không đủ tiền nhập hàng đâu!");
+        }
+    }
+
+    // --- GAMEPLAY BÁN HÀNG ---
+    function openShop() {
+        switchScreen('screen-gameplay');
+        state.time = 8 * 60;
+        renderGameFruits();
+        
+        state.clockInterval = setInterval(() => {
+            state.time += 15;
+            let h = Math.floor(state.time / 60).toString().padStart(2, '0');
+            let m = (state.time % 60).toString().padStart(2, '0');
+            $('game-time').innerText = `${h}:${m}`;
+            
+            // Random khách vào
+            if(!state.customer && Math.random() > 0.4) spawnCustomer();
+
+            // Hết ngày (20:00)
+            if(state.time >= 20 * 60) endDay();
+        }, 1500);
+    }
+
+    function renderGameFruits() {
+        const grid = $('fruit-grid');
+        grid.innerHTML = '';
+        FRUITS.forEach(f => {
+            let qty = state.inventory[f.id];
+            grid.innerHTML += `
+                <div class="fruit-item ${qty === 0 ? 'empty' : ''}" onclick="clickFruit('${f.id}')">
+                    <div class="fruit-stock">${qty}</div>
+                    <div class="fruit-emoji">${f.emoji}</div>
+                    <div style="font-weight: bold; font-size: 16px;">${f.name}</div>
+                    <div style="font-size: 12px; color: var(--accent-green-dark); font-weight:bold;">Bán: ${f.sell}k</div>
+                </div>
+            `;
+        });
+    }
+
+    // Sinh khách ngẫu nhiên
+    function spawnCustomer() {
+        let fruit = FRUITS[Math.floor(Math.random() * FRUITS.length)];
+        let text = DIALOGUES[Math.floor(Math.random() * DIALOGUES.length)].replace('{fruit}', fruit.name);
+        let seed = ANIME_SEEDS[Math.floor(Math.random() * ANIME_SEEDS.length)];
+        
+        state.customer = { reqFruit: fruit };
+        
+        // API tạo ảnh Anime dễ thương (Không dùng người que)
+        $('avatar-img').src = `https://api.dicebear.com/7.x/notionists/svg?seed=${seed}&backgroundColor=ffdfba`;
+        
+        $('customer-avatar').classList.remove('leaving');$('customer-dialogue').innerText = text;
+        $('customer-dialogue').style.color = "var(--color-text)";
+        $('customer-zone').style.display = 'flex';
+        
+        // Reset thanh tròn
+        state.patience = 100;
+        $('timer-circle').setAttribute('stroke-dasharray', `100, 100`);
+        $('timer-circle').setAttribute('stroke', '#56c596');
+
+        clearInterval(state.patienceTimer);
+        state.patienceTimer = setInterval(() => {
+            state.patience -= 3.5; // Tốc độ giảm
+            $('timer-circle').setAttribute('stroke-dasharray', `${Math.max(0, state.patience)}, 100`);
+            
+            if(state.patience < 40) $('timer-circle').setAttribute('stroke', '#ff8da1'); // Chuyển đỏ
+            
+            if(state.patience <= 0) resolveInteraction(false, "Quá lâu! Làm ăn lề mề, đi quán khác!", 1, fruit.name);
+        }, 300);
+    }
+
+    // NGƯỜI CHƠI BẤM VÀO TRÁI CÂY
+    function clickFruit(id) {
+        if(!state.customer) return; // Chưa có khách
+
+        let clickedFruit = FRUITS.find(f => f.id === id);
+        let reqId = state.customer.reqFruit.id;
+
+        if (id === reqId) {
+            // Khách chọn đúng quả
+            if (state.inventory[id] > 0) {
+                // BÁN THÀNH CÔNG
+                state.inventory[id]--;
+                state.money += clickedFruit.sell;
+                state.dailyRev += clickedFruit.sell;
+                resolveInteraction(true, "Tuyệt quá! Cảm ơn shop nha 💖", 5, clickedFruit.name);
+            } else {
+                // HẾT HÀNG
+                resolveInteraction(false, "Trời đất, hết hàng sao không cất bảng?", 2, clickedFruit.name);
+            }
+        } else {
+            // KHÁCH ĐÒI TÁO MÀ ĐƯA CHUỐI
+            resolveInteraction(false, `Ủa? Mình gọi ${state.customer.reqFruit.name} mà sao đưa ${clickedFruit.name}? Bán với chả buôn!`, 1, state.customer.reqFruit.name);
+        }
+    }
+
+    function resolveInteraction(isSuccess, message, stars, fruitName) {
+        clearInterval(state.patienceTimer);
+        state.customer = null;
+        
+        $('customer-dialogue').innerText = message;
+        $('customer-dialogue').style.color = isSuccess ? "var(--accent-green-dark)" : "red";
+        
+        // Cập nhật rating & lưu review
+        state.totalStars += stars;
+        state.reviewCount++;
+        saveReview(stars, fruitName);
+        
+        updateUI();
+        renderGameFruits();
+
+        setTimeout(() => {
+            $('customer-avatar').classList.add('leaving');
+            setTimeout(() => {
+                $('customer-zone').style.display = 'none';
+            }, 500);
+        }, 1500);
+    }
+
+    function saveReview(stars, fruitName) {
+        let pool = stars >= 4 ? REVIEWS_GOOD : REVIEWS_BAD;
+        let txt = pool[Math.floor(Math.random() * pool.length)].replace('{fruit}', fruitName);
+        let names = ["@yeumuahe", "@thichangi", "@be_dautay", "@chum_traicay", "@simp_anime"];
+        
+        state.lastReview = {
+            name: names[Math.floor(Math.random() * names.length)],
+            stars: stars,
+            text: txt
+        };
+    }
+
+    // --- KẾT THÚC NGÀY ---
+    function endDay() {
+        clearInterval(state.clockInterval);
+        clearInterval(state.patienceTimer);
+        
+        $('summary-day').innerText = state.day;
+        $('sum-revenue').innerText = state.dailyRev;
+        $('sum-cost').innerText = state.dailyCost;
+        
+        if(state.lastReview) {
+            $('review-name').innerText = state.lastReview.name;
+            $('review-stars').innerText = '⭐'.repeat(state.lastReview.stars);$('review-text').innerText = `"${state.lastReview.text}"`;
+        }
+
+        $('modal-end-day').style.display = 'flex';
+    }
+
+    function nextDay() {
+        state.day++;
+        state.dailyRev = 0;
+        state.dailyCost = 0;
+        $('modal-end-day').style.display = 'none';
+        switchScreen('screen-management');
+    }
+
+</script>
 </body>
 </html>
