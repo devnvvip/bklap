@@ -208,8 +208,8 @@ enum GraphicsConfiguration {
         setenv("PG_ENGINE_CORES", "4", 1)
         setenv("PG_ENGINE_QOS", "interactive", 1)
         PGSetMemoryCap(Int32(settings.memoryCapMB))
-        let enableSharper = true
-        PGSetSharperUpscaling(1)
+        let enableSharper = false
+        PGSetSharperUpscaling(0)
         var pointers = options.map { strdup($0) }
         defer { pointers.forEach { free($0) } }
         pointers.withUnsafeMutableBufferPointer { buffer in
