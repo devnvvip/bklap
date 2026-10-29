@@ -1883,6 +1883,7 @@ static uint64_t pg_asi_enter_script(w2c_game *instance) {
 static void pg_asi_leave_script(w2c_game *instance, uint64_t previous) {
   *(uint64_t *)pg_pointer(&env, instance->w2c_g1 + 3088, 8) = previous;
 }
+static uint64_t pg_f32_arg(float value) { uint32_t bits; memcpy(&bits, &value, 4); return bits; }
 // Settings › Cheats: spawn vehicle, God mode, Never wanted, repair, time and weather. Run each frame by
 // pg_cheats_menu_tick from pg_asi_script_tick below.
 #include "NativeCheats.inc"
@@ -2310,7 +2311,6 @@ static void pg_asi_frame(w2c_game *instance) {
 // Trailers: unhitching one is holding the headlight input, which nobody guesses on touch, so the touch controls
 // show a Detach trailer button while the player's vehicle pulls a trailer (GTA-76). Checked here on the game thread
 // every 15 frames (IS_VEHICLE_ATTACHED_TO_TRAILER on the vehicle the player is in).
-static uint64_t pg_f32_arg(float value);
 static uint32_t pgSubmarine;
 // Submersibles hold out to 200 m (GTA-134). The Merryweather Heist's device lies about 180 m down; the engine's
 // default crush depths are -150/-170/-185 m, and a script's SET_SUBMARINE_CRUSH_DEPTHS lasts one frame only
@@ -2371,7 +2371,6 @@ static uint64_t pg_wasm_text(uint64_t *slot, const char *text) {
   if (!*slot) { *slot = pg_asi_alloc(strlen(text) + 1); if (*slot) memcpy(pg_pointer(&env, *slot, strlen(text) + 1), text, strlen(text) + 1); }
   return *slot;
 }
-static uint64_t pg_f32_arg(float value) { uint32_t bits; memcpy(&bits, &value, 4); return bits; }
 #include "NativeTurbo.inc"
 static void pg_trackify_tick(w2c_game *instance) {
   static double lastData, lastPing; static bool wasOpen;
