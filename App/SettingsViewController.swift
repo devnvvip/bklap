@@ -348,10 +348,16 @@ final class SettingsViewController: UITableViewController {
                     }
                 } else {
                     content.text = AppLanguage.choose("Frame rate")
-                    content.secondaryText = "Đã khóa cứng 60 FPS để duy trì độ mượt tuyệt đối, không lag."
+                    content.secondaryText = "Mặc định 60 FPS, sàn mượt 40 FPS, có thể mở khóa 120 FPS trên màn hình ProMotion."
                     let button = UIButton(type: .system)
-                    button.setTitle("60 FPS (Khóa cứng)", for: .normal)
-                    button.isEnabled = false
+                    button.setTitle(GameSettings.frameRateTitle(settings.frameRateCap) + " ▾", for: .normal)
+                    button.showsMenuAsPrimaryAction = true
+                    button.accessibilityLabel = AppLanguage.choose("Frame rate")
+                    button.menu = UIMenu(children: [60, 0].map { cap in
+                        UIAction(title: GameSettings.frameRateTitle(cap), state: cap == settings.frameRateCap ? .on : .off) { [weak self] _ in
+                            self?.settings.frameRateCap = cap; self?.reloadFooters(); self?.tableView.reloadData()
+                        }
+                    })
                     button.sizeToFit()
                     cell.accessoryView = button
                 }

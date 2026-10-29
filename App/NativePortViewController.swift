@@ -149,9 +149,10 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         // Benchmarks keep their own frame limit.
         if ProcessInfo.processInfo.environment["PG_BENCHMARK"] != nil { return }
         DispatchQueue.main.async { [self] in
-            let limit: Int32 = 1 // Khóa cứng 60 FPS
+            let cap = GameSettings.shared.frameRateCap
+            let limit: Int32 = cap == 0 ? 0 : 1 // 0: unlocked (up to 120 FPS), 1: 60 FPS (floor 40)
             if thermalFrameLimit != limit {
-                appendLog("Frame limit locked strictly to 60 FPS.")
+                appendLog("Frame limit: \(limit == 0 ? "unlocked (up to 120 FPS)" : "60 FPS (floor 40 FPS)").")
                 PGSetFrameLimit(limit)
             }
             thermalFrameLimit = limit
@@ -420,8 +421,9 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(lookForGameFiles), name: UIApplication.didBecomeActiveNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(installChanged), name: .gameInstallChanged, object: nil)
         displayLink = CADisplayLink(target: self, selector: #selector(pollController))
-        // Khóa cứng 60 FPS
-        displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
+        // Khóa mượt 60 FPS, sàn 40 FPS, unlock tối đa 120 FPS trên màn hình ProMotion
+        let top = Float(UIScreen.main.maximumFramesPerSecond)
+        displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 40, maximum: max(60, top), preferred: 60)
         displayLink?.add(to: .main, forMode: .common)
         #if targetEnvironment(simulator)
         DebugChannel.shared.start(self)

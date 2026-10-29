@@ -311,12 +311,15 @@ final class GameSettings {
         set { defaults.set(newValue, forKey: "hideTouchWithController") }
     }
     var sixtyFPS: Bool { true }
-    /// Frame rate cap: locked strictly to 60 FPS, no unlock option.
+    /// Frame rate cap: default 60 FPS (floor 40) or 0 (unlocked up to 120 FPS on ProMotion).
     var frameRateCap: Int {
-        get { 60 }
-        set { defaults.set(60, forKey: "frameRateCap") }
+        get {
+            if let cap = defaults.object(forKey: "frameRateCap") as? Int, [0, 60].contains(cap) { return cap }
+            return 60
+        }
+        set { defaults.set(newValue, forKey: "frameRateCap") }
     }
-    static func frameRateTitle(_ cap: Int) -> String { "60 FPS" }
+    static func frameRateTitle(_ cap: Int) -> String { cap == 0 ? "Mở khóa (120 FPS)" : "60 FPS (Sàn 40 FPS)" }
 
     // Interrupted boots are recorded without silently lowering saved graphics.
     private var bootPending: Bool {
