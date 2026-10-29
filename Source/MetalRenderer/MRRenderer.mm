@@ -478,7 +478,11 @@ static void makeSamplers(State *s) {
 	float minLod = std::max(0.0f, wordFloat(w[11])), maxLod = std::min(1000.0f, std::max(0.0f, wordFloat(w[12])));
 	d.lodMinClamp = minLod; d.lodMaxClamp = std::max(minLod, maxLod);
 	if (filter & 0x80) d.compareFunction = w[6] >= 1 && w[6] <= 8 ? (MTLCompareFunction)(w[6] - 1) : MTLCompareFunctionAlways;
-	if (aniso) { d.magFilter = d.minFilter = MTLSamplerMinMagFilterLinear; d.mipFilter = MTLSamplerMipFilterLinear; d.maxAnisotropy = std::max(1u, std::min(16u, w[5])); }
+	if (d.magFilter == MTLSamplerMinMagFilterLinear || d.minFilter == MTLSamplerMinMagFilterLinear || aniso) {
+		d.magFilter = d.minFilter = MTLSamplerMinMagFilterLinear;
+		d.mipFilter = MTLSamplerMipFilterLinear;
+		d.maxAnisotropy = 16;
+	}
 	s->sampler = [R->device newSamplerStateWithDescriptor:d];
 	d.magFilter = d.minFilter = MTLSamplerMinMagFilterNearest; d.maxAnisotropy = 1;
 	s->samplerNearest = [R->device newSamplerStateWithDescriptor:d];
@@ -2026,7 +2030,7 @@ static void capture(Texture *t, const std::string &name, id<MTLRenderPipelineSta
 
 // Sharper upscaling (GTA-10): instead of the screen stretching the picture, MetalFX's spatial scaler
 // brings it to the screen's own resolution (up to 3 times the render size) with edge-aware sharpening.
-static std::atomic<bool> gUpscale{false};
+static std::atomic<bool> gUpscale{true};
 extern "C" void PGMetalRendererSetUpscaling(int on) { gUpscale.store(on != 0); }
 #if PG_METALFX
 static struct { id<MTLFXSpatialScaler> scaler; id<MTLTexture> out; uint32_t inW, inH, outW, outH; MTLPixelFormat format; bool unsupported; } FX;
@@ -2499,10 +2503,9 @@ static bool setup() {
 	gASTCBC3 = gASTCBC1 && !(getenv("PG_ASTC_BC3") && atoi(getenv("PG_ASTC_BC3")) == 0);		// on since v1.4.4 (Kevin); PG_ASTC_BC3=0 turns it off
 	// Lite build (the app sets PG_LITE from its Info.plist); PG_LITE_TEXTURES=0 keeps textures whole there.
 	gSkipTopMip = getenv("PG_LITE") && strcmp(getenv("PG_LITE"), "0") && !(getenv("PG_LITE_TEXTURES") && !strcmp(getenv("PG_LITE_TEXTURES"), "0"));
-	// Textures of at least 512×512 texels lose their largest level where BC is decoded, a quarter of their
-	// memory (GTA-122; simulator: GPU textures −16%).
-	// On by default since v1.4.3 at 512×512 (Kevin, 2026-10-20); PG_BIG_MIP_SKIP=0 turns it off, another size changes it.
-	{ const char *v = getenv("PG_BIG_MIP_SKIP"); long side = v ? atol(v) : 512; if (side >= 256 && side <= 8192 && !gNativeBC) gSkipBigTopMip = (uint64_t)side * side; }
+	// Textures retain full resolution (all mipmap levels) for maximum sharpness.
+	gSkipBigTopMip = 0;
+	{ const char *v = getenv("PG_BIG_MIP_SKIP"); if (v) { long side = atol(v); if (side >= 256 && side <= 8192 && !gNativeBC) gSkipBigTopMip = (uint64_t)side * side; } }
 	R->borderColors = [R->device supportsFamily:MTLGPUFamilyApple7];
 	if (!loadShaderLibrary(R->device)) return false;
 	R->zeroBuffer = [R->device newBufferWithLength:65536 options:MTLResourceStorageModeShared];
