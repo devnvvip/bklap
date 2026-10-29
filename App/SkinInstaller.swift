@@ -92,7 +92,7 @@ enum SkinInstaller {
             ("SuperlodType", "SLOD_HUMAN"), ("ScenarioPopStreamingSlot", "SCENARIO_POP_STREAMING_NORMAL"), ("DefaultSpawningPreference", "DSP_NORMAL")
         ]
         let fields = values.map { "<\($0.0)>\($0.1)</\($0.0)>" }.joined()
-        return Data(("<?xml version=\"1.0\"?><CPedModelInfo__InitDataList><residentTxd>comp_peds_generic</residentTxd><residentAnims/><InitDatas><Item>" + fields + "<IsStreamedGfx value=\"false\"/><IsHeadBlendPed value=\"false\"/><CanSpawnInCar value=\"true\"/><HDDist value=\"3.0\"/><TargetingThreatModifier value=\"1.0\"/><DefaultRemoveRangeMultiplier value=\"1.0\"/></Item></InitDatas><multiTxdRelationships/></CPedModelInfo__InitDataList>").utf8)
+        return Data(("<?xml version=\"1.0\"?><CPedModelInfo__InitDataList><residentTxd>comp_peds_generic</residentTxd><residentAnims/><InitDatas><Item>" + fields + "<IsStreamedGfx value=\"false\"/><IsHeadBlendPed value=\"false\"/><CanSpawnInCar value=\"true\"/><HDDist value=\"250.0\"/><TargetingThreatModifier value=\"1.0\"/><DefaultRemoveRangeMultiplier value=\"2.0\"/></Item></InitDatas><multiTxdRelationships/></CPedModelInfo__InitDataList>").utf8)
     }
     /// Explicit pre-game repair, not recurring startup work. Originals kept beside
     /// the archive as hidden backups, so native mod enumeration cannot mount them.
