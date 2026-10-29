@@ -22,7 +22,7 @@ for option in "$@"; do
 done
 IPA=GTA5Port.ipa
 $LITE && IPA=GTA5Port-Lite.ipa
-cd "$(dirname "$0")/app"
+cd "$(dirname "$0")"
 JOBS="${JOBS:-$(sysctl -n hw.ncpu)}"
 # The system Python runs natively on Apple Silicon (a Rosetta Python would
 # make the engine tools build for the wrong CPU).
@@ -49,7 +49,7 @@ xcodebuild -project PlayGTA5Native.xcodeproj -scheme PlayGTA5Native \
   GCC_OPTIMIZATION_LEVEL=2 SWIFT_OPTIMIZATION_LEVEL=-O DEBUG_INFORMATION_FORMAT=dwarf \
   CODE_SIGNING_ALLOWED=NO CODE_SIGN_ENTITLEMENTS="$ENTITLEMENTS" build > Build/xcodebuild.log 2>&1 || {
   grep -E 'error:' Build/xcodebuild.log | head -20
-  echo "Build failed; the full log is app/Build/xcodebuild.log"; exit 1; }
+  echo "Build failed; the full log is Build/xcodebuild.log"; exit 1; }
 grep -E 'BUILD SUCCEEDED' Build/xcodebuild.log
 
 APP=Build/Release/Build/Products/Release-iphoneos/PlayGTA5Native.app
@@ -59,6 +59,6 @@ codesign --force --sign - --entitlements "$ENTITLEMENTS" --generate-entitlement-
 STAGE=Build/IPA
 mkdir -p "$STAGE/Payload"
 ditto "$APP" "$STAGE/Payload/PlayGTA5Native.app"
-rm -f "../$IPA"
-(cd "$STAGE" && zip -qry "../../../$IPA" Payload)
-echo "Done: $(cd .. && pwd)/$IPA"
+rm -f "$IPA"
+(cd "$STAGE" && zip -qry "../../$IPA" Payload)
+echo "Done: $PWD/$IPA"
