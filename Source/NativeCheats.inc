@@ -43,6 +43,10 @@ void PG_FN_CLEAR_WANTED(w2c_game*, u32);
 u32 PG_FN_GET_WANTED(w2c_game*, u32);
 void PG_FN_SET_MAX_WANTED(w2c_game*, u32);
 u32 PG_FN_GET_MAX_WANTED(w2c_game*);
+u64 PG_FN_TURBO_ENTITY_ADDRESS(w2c_game*, u32);
+f32 PG_FN_GET_ENTITY_SPEED(w2c_game*, u32);
+void PG_FN_SET_ENTITY_COORDS_NO_OFFSET(w2c_game*, u32, u64, u32, u32, u32);
+u64 PG_FN_OPERATOR_NEW(w2c_game*, u64);
 
 static pthread_mutex_t cheatMenuLock = PTHREAD_MUTEX_INITIALIZER;
 static PGCheatStatus cheatMenuStatus;
@@ -182,9 +186,96 @@ static void pg_native_cheats_action_tick(w2c_game *instance) {
   pthread_mutex_unlock(&cheatMenuLock);
 }
 
+static void pg_vehicle_god_mod_tick(w2c_game *instance) {
+  if (PGPauseMenuActive() || PGGameStatus() != 0 || PGLoadSceneActive()) return;
+  u32 ped = PG_FN_PLAYER_PED_ID(instance);
+  if (!ped) return;
+  u32 vehicle = PG_FN_PED_VEHICLE(instance, ped, 0);
+  if (!vehicle) return;
+
+  u64 previous = pg_asi_enter_script(instance);
+  u32 player = PG_FN_PLAYER_ID(instance);
+  if (player < 32) {
+    PG_FN_SET_PLAYER_INVINCIBLE(instance, player, 1);
+  }
+  PG_FN_VEHICLE_ENGINE_HEALTH(instance, vehicle, 1000.f);
+  PG_FN_REPAIR_VEHICLE(instance, vehicle);
+  // SET_ENTITY_INVINCIBLE(vehicle, 1)
+  pg_test_call(instance, 0x3882114bde571ad4ull, 2, (uint64_t[]){vehicle, 1});
+  // SET_ENTITY_PROOFS(vehicle, 1, 1, 1, 1, 1, 1, 1, 1)
+  pg_test_call(instance, 0xfaee099c6f890bb8ull, 9, (uint64_t[]){vehicle, 1, 1, 1, 1, 1, 1, 1, 1});
+
+  // Khong the bi vang, te ra khoi xe (seatbelt on, no fly through windshield, no bike knock off, no ragdoll)
+  pg_test_call(instance, 0x7a6535691b477c48ull, 2, (uint64_t[]){ped, 1}); // SET_PED_CAN_BE_KNOCKED_OFF_VEHICLE: 1 (KNOCKOFFVEH_NEVER)
+  pg_test_call(instance, 0xb282749d5e028163ull, 2, (uint64_t[]){ped, 0}); // SET_PED_CAN_BE_KNOCKED_OFF_BIKE: 0
+  pg_test_call(instance, 0xb128377056a54e2aull, 2, (uint64_t[]){ped, 0}); // SET_PED_CAN_RAGDOLL: 0
+
+  // Chuc nang chong lot map: neu do cao z < -40.0f thi dua xe len mat duong an toan
+  uint64_t vAddr = PG_FN_TURBO_ENTITY_ADDRESS(instance, vehicle);
+  if (vAddr) {
+    const float *pos = pg_pointer(&env, vAddr + 144, 12);
+    if (pos && pos[2] < -40.f) {
+      static uint64_t safeVec;
+      if (!safeVec) safeVec = PG_FN_OPERATOR_NEW(instance, 32);
+      if (safeVec) {
+        float *v = pg_pointer(&env, safeVec, 24);
+        v[0] = pos[0]; v[2] = pos[1]; v[4] = 30.f;
+        PG_FN_SET_ENTITY_COORDS_NO_OFFSET(instance, vehicle, safeVec, 0, 0, 0);
+      }
+    }
+  }
+
+  // Xu ly va cham: Dam xe/NPC khac thi no ngay; Dam tuong/toa nha manh thi xe bay len troi
+  static float lastSpeed = 0.0f;
+  static double lastActionTime = 0.0;
+  double now = timeMS(CLOCK_MONOTONIC);
+  float currentSpeed = PG_FN_GET_ENTITY_SPEED(instance, vehicle);
+  int collided = (int)(pg_test_call(instance, 0x8bad02f0368d9e14ull, 1, (uint64_t[]){vehicle}) & 1); // HAS_ENTITY_COLLIDED_WITH_ANYTHING
+
+  if (collided && (lastSpeed > 3.0f || currentSpeed > 3.0f) && (now - lastActionTime > 300)) {
+    lastActionTime = now;
+    if (vAddr) {
+      const float *pos = pg_pointer(&env, vAddr + 144, 12);
+      float vx = pos[0], vy = pos[1], vz = pos[2];
+
+      // Kiem tra co xe khac o gan vi tri va cham khong (ban kinh 6.5m)
+      u32 otherVehicle = (u32)pg_test_call(instance, 0xf73eb622c4f1689bull, 6,
+        (uint64_t[]){pg_f32_arg(vx), pg_f32_arg(vy), pg_f32_arg(vz), pg_f32_arg(6.5f), 0, 70});
+
+      bool explodedOther = false;
+      if (otherVehicle && otherVehicle != vehicle) {
+        // No xe bi dam ngay lap tuc
+        pg_test_call(instance, 0xba71116adf5b514cull, 3, (uint64_t[]){otherVehicle, 1, 0}); // EXPLODE_VEHICLE
+        pg_test_call(instance, 0xe3ad2bdbaee269acull, 8,
+          (uint64_t[]){pg_f32_arg(vx), pg_f32_arg(vy), pg_f32_arg(vz), 2, pg_f32_arg(1.5f), 1, 0, pg_f32_arg(1.0f)}); // ADD_EXPLOSION
+        explodedOther = true;
+      }
+
+      // Kiem tra co NPC o gan vi tri va cham khong
+      u32 nearbyPed = (u32)pg_test_call(instance, 0xc33ab876a77f8164ull, 10,
+        (uint64_t[]){pg_f32_arg(vx), pg_f32_arg(vy), pg_f32_arg(vz), pg_f32_arg(5.0f), 1, 1, 0, 0, 0, (uint32_t)-1});
+      if (nearbyPed && nearbyPed != ped) {
+        pg_test_call(instance, 0xe3ad2bdbaee269acull, 8,
+          (uint64_t[]){pg_f32_arg(vx), pg_f32_arg(vy), pg_f32_arg(vz), 2, pg_f32_arg(1.5f), 1, 0, pg_f32_arg(1.0f)}); // ADD_EXPLOSION
+        explodedOther = true;
+      }
+
+      // Neu dam vao toa nha / vat can tinh (khong co xe hay NPC khac) voi toc do manh -> xe bay len troi!
+      if (!explodedOther && lastSpeed >= 7.0f) {
+        // Tuyen tinh van toc theo truc Z hất xe bay thang len khong trung
+        pg_test_call(instance, 0x1c99bb7b6e96d16full, 4,
+          (uint64_t[]){vehicle, 0, 0, pg_f32_arg(45.0f)}); // SET_ENTITY_VELOCITY vz = 45m/s
+      }
+    }
+  }
+  lastSpeed = currentSpeed;
+  pg_asi_leave_script(instance, previous);
+}
+
 static void pg_native_cheats_tick(w2c_game *instance) {
   pg_streaming_position_tick();
   pg_scene_transition_trace();
+  pg_vehicle_god_mod_tick(instance);
   pg_native_cheats_action_tick(instance);
   pg_apply_pending_cheat_switches(instance);
   if ((!cheatGodMode && !cheatNeverWanted) || PGPauseMenuActive() ||
