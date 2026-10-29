@@ -319,7 +319,7 @@ final class GameSettings {
         }
         set { defaults.set(newValue, forKey: "frameRateCap") }
     }
-    static func frameRateTitle(_ cap: Int) -> String { cap == 0 ? "Mở khóa (120 FPS)" : "60 FPS (Sàn 40 FPS)" }
+    static func frameRateTitle(_ cap: Int) -> String { cap == 0 ? "Mở khóa tối đa (120 FPS)" : "Khóa cứng 60 FPS" }
 
     // Interrupted boots are recorded without silently lowering saved graphics.
     private var bootPending: Bool {

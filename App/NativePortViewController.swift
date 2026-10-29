@@ -150,9 +150,9 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         if ProcessInfo.processInfo.environment["PG_BENCHMARK"] != nil { return }
         DispatchQueue.main.async { [self] in
             let cap = GameSettings.shared.frameRateCap
-            let limit: Int32 = cap == 0 ? 0 : 1 // 0: unlocked (up to 120 FPS), 1: 60 FPS (floor 40)
+            let limit: Int32 = cap == 0 ? 0 : 1 // 0: unlock toi da 120, 1: khoa cung 60
             if thermalFrameLimit != limit {
-                appendLog("Frame limit: \(limit == 0 ? "unlocked (up to 120 FPS)" : "60 FPS (floor 40 FPS)").")
+                appendLog("Frame limit: \(limit == 0 ? "unlocked (up to 120 FPS)" : "locked strictly to 60 FPS").")
                 PGSetFrameLimit(limit)
             }
             thermalFrameLimit = limit
@@ -421,9 +421,13 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(lookForGameFiles), name: UIApplication.didBecomeActiveNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(installChanged), name: .gameInstallChanged, object: nil)
         displayLink = CADisplayLink(target: self, selector: #selector(pollController))
-        // Khóa mượt 60 FPS, sàn 40 FPS, unlock tối đa 120 FPS trên màn hình ProMotion
+        // Khóa cứng nghiêm ngặt 60 FPS hoặc unlock cứng tối đa 120 FPS trên ProMotion
         let top = Float(UIScreen.main.maximumFramesPerSecond)
-        displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 40, maximum: max(60, top), preferred: 60)
+        if GameSettings.shared.frameRateCap == 0 {
+            displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: top, preferred: top)
+        } else {
+            displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
+        }
         displayLink?.add(to: .main, forMode: .common)
         #if targetEnvironment(simulator)
         DebugChannel.shared.start(self)

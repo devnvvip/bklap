@@ -348,7 +348,7 @@ final class SettingsViewController: UITableViewController {
                     }
                 } else {
                     content.text = AppLanguage.choose("Frame rate")
-                    content.secondaryText = "Mặc định 60 FPS, sàn mượt 40 FPS, có thể mở khóa 120 FPS trên màn hình ProMotion."
+                    content.secondaryText = "Khóa cứng nghiêm ngặt 60 FPS hoặc Mở khóa tối đa 120 FPS trên màn hình ProMotion."
                     let button = UIButton(type: .system)
                     button.setTitle(GameSettings.frameRateTitle(settings.frameRateCap) + " ▾", for: .normal)
                     button.showsMenuAsPrimaryAction = true
