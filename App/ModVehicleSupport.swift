@@ -2,10 +2,24 @@ import Foundation
 /// Only mod metadata is inspected, before engine startup. No model/texture conversion.
 enum ModVehicleSupport {
  static func vehicles()->[String] {
-  ModInstaller.installed().filter{$0.enabled}.flatMap{mod -> [String] in
-   guard let b=try? Data(contentsOf:mod.url.appendingPathComponent(".mulone-vehicles.json")),let v=try? JSONSerialization.jsonObject(with:b) as? [String] else{return []}
-   return v.filter{ModPack.validName($0)}
-  }.sorted()
+  let fm = FileManager.default
+  var results = Set<String>()
+  for mod in ModInstaller.installed().filter({$0.enabled}) {
+   if let b = try? Data(contentsOf: mod.url.appendingPathComponent(".mulone-vehicles.json")),
+      let v = try? JSONSerialization.jsonObject(with: b) as? [String] {
+    for name in v where ModPack.validName(name) { results.insert(name.lowercased()) }
+   }
+   if let walk = fm.enumerator(at: mod.url, includingPropertiesForKeys: nil, options: .skipsHiddenFiles) {
+    for case let url as URL in walk {
+     if url.pathExtension.lowercased() == "yft" {
+      var model = url.deletingPathExtension().lastPathComponent.lowercased()
+      if model.hasSuffix("_hi") { model = String(model.dropLast(3)) }
+      if ModPack.validName(model) { results.insert(model) }
+     }
+    }
+   }
+  }
+  return Array(results).sorted()
  }
  static func prepare(manifestPath:String,log:(String)->Void) {
   let fm=FileManager.default

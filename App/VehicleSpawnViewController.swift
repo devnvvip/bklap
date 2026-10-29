@@ -110,7 +110,7 @@ final class VehicleSpawnViewController: UITableViewController, UISearchResultsUp
             var entry = PGVehicleEntry()
             return PGVehicleCatalogEntryAt(UInt32(index), &entry) ? SpawnVehicle(entry) : nil
         }.filter { entry in
-            modNames.isEmpty || modNames.contains(entry.name.lowercased()) || true
+            modNames.contains(entry.name.lowercased())
         }.sorted { ($0.title, $0.name) < ($1.title, $1.name) }
         updateSearchResults(for: search)
     }
