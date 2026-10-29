@@ -52,7 +52,7 @@ enum ModInstaller {
     }
 
     static func unpackMany(_ files:[URL]) throws -> URL {
-        guard !files.isEmpty,files.count<=256 else{throw ModError("Chọn từ 1 tới 256 tệp/thư mục.")}
+        guard !files.isEmpty else{throw ModError("Chọn ít nhất 1 tệp/thư mục.")}
         if files.count==1{return try unpack(files[0])}
         let fm=FileManager.default,root=fm.temporaryDirectory.appendingPathComponent("mod-selection-"+UUID().uuidString)
         try fm.createDirectory(at:root,withIntermediateDirectories:true)
@@ -261,8 +261,15 @@ enum ModInstaller {
             if lower == "dlc.rpf" {
                 let parent = ((file.rel as NSString).deletingLastPathComponent as NSString).lastPathComponent
                 let generic: Set<String> = ["", "dlc", "dlcpacks", "files", "addon", "add-on", "install", "mod", "mods", "x64", "update"]
-                let pack = cleanPackName(generic.contains(parent.lowercased()) ? plan.name : parent)
-                plan.items.append(Item(source: file.url, target: "update/x64/dlcpacks/\(pack)/dlc.rpf", note: AppLanguage.interpolate(AppLanguage.choose("add-on pack \"{arg0}\""), [pack])))
+                var pack = cleanPackName(generic.contains(parent.lowercased()) ? plan.name : parent)
+                var target = "update/x64/dlcpacks/\(pack)/dlc.rpf"
+                var disambig = 2
+                while plan.items.contains(where: { $0.target.lowercased() == target.lowercased() }) {
+                    pack = cleanPackName("\(pack)_\(disambig)")
+                    target = "update/x64/dlcpacks/\(pack)/dlc.rpf"
+                    disambig += 1
+                }
+                plan.items.append(Item(source: file.url, target: target, note: AppLanguage.interpolate(AppLanguage.choose("add-on pack \"{arg0}\""), [pack])))
                 plan.kinds.insert("addon"); continue
             }
             guard gameExtensions.contains(ext) else { plan.skipped.append((file.rel, AppLanguage.choose("not a game file"))); continue }

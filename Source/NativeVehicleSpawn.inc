@@ -34,20 +34,23 @@ enum { PG_CLASS_BOAT = 14, PG_CLASS_HELICOPTER = 15, PG_CLASS_PLANE = 16, PG_CLA
 
 // The menu keeps owning what it spawned until it deletes it. "No longer needed" alone leaves nearby
 // vehicles (and their streamed models) alive, so repeated spawns grew memory without bound.
-static u32 menuVehicles[2];
+#define PG_MAX_MENU_VEHICLES 32
+static u32 menuVehicles[PG_MAX_MENU_VEHICLES];
 static u64 menuVehicleOwner;
 static bool pg_vehicle_make_room(w2c_game *instance, u64 scratch, u64 owner) {
   if (menuVehicleOwner != owner) {
     memset(menuVehicles, 0, sizeof menuVehicles);
     menuVehicleOwner = owner; // A new main script: the old one cleaned up its own vehicles.
   }
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < PG_MAX_MENU_VEHICLES; i++) {
     u32 vehicle = menuVehicles[i];
     if (vehicle && (!PG_FN_ENTITY_EXISTS(instance, vehicle) || !PG_FN_ENTITY_OWNED(instance, vehicle, 0)))
       menuVehicles[i] = 0; // Never take a vehicle back from a mission that took it over.
   }
-  if (!menuVehicles[0] || !menuVehicles[1]) return true;
-  for (int i = 0; i < 2; i++) {
+  for (int i = 0; i < PG_MAX_MENU_VEHICLES; i++) {
+    if (!menuVehicles[i]) return true;
+  }
+  for (int i = 0; i < PG_MAX_MENU_VEHICLES; i++) {
     bool occupied = false;
     // This build has 16 seats per vehicle; also counts anyone getting in.
     for (int seat = -1; seat < 15; seat++)
@@ -267,9 +270,15 @@ static void pg_vehicle_menu_step(w2c_game *instance, u64 vector) {
           // Boats keep the height they were created at (on the water).
           if (category != PG_CLASS_BOAT) PG_FN_GROUND_VEHICLE(instance, vehicle, 5.0f);
           if (enter && PG_FN_VEHICLE_SEATS(instance, model) > 0) PG_FN_SET_PED_INTO_VEHICLE(instance, ped, vehicle, (u32)-1);
-          // Oldest first; room was made before the model was requested.
-          if (!menuVehicles[0]) menuVehicles[0] = menuVehicles[1];
-          menuVehicles[1] = vehicle;
+          // Store spawned vehicle into menuVehicles array
+          bool stored = false;
+          for (int vi = 0; vi < PG_MAX_MENU_VEHICLES; vi++) {
+            if (!menuVehicles[vi]) { menuVehicles[vi] = vehicle; stored = true; break; }
+          }
+          if (!stored) {
+            for (int vi = 0; vi < PG_MAX_MENU_VEHICLES - 1; vi++) menuVehicles[vi] = menuVehicles[vi + 1];
+            menuVehicles[PG_MAX_MENU_VEHICLES - 1] = vehicle;
+          }
         }
       }
     }
