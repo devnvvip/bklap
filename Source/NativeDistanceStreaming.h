@@ -20,21 +20,21 @@ static inline uint64_t pg_distance_reserve_for_limit(uint64_t requestedMB,uint64
 }
 static inline uint64_t pg_distance_available(const PGDistanceStreaming *s,uint64_t engine,uint64_t available){
  uint64_t growth=available>s->reserveBytes?available-s->reserveBytes:0;
- uint64_t minMapStream = 128ull << 20;
+ uint64_t minMapStream = 256ull << 20;
  if(growth < minMapStream && available > (64ull << 20)) growth = available - (64ull << 20);
  if(growth > engine) growth = engine;
  return growth;
 }
 static inline void pg_distance_sample(PGDistanceStreaming *s,uint64_t now,bool valid,float x,float y,float z,bool scene){
  if(scene){
-  if(!s->wasScene||now>=s->nextSceneMS){atomic_store(&s->permitUntilMS,now+2000);s->nextSceneMS=now+1000;}
+  if(!s->wasScene||now>=s->nextSceneMS){atomic_store(&s->permitUntilMS,now+5000);s->nextSceneMS=now+1000;}
   s->anchorValid=false;
  }else if(valid&&isfinite(x)&&isfinite(y)&&isfinite(z)){
   if(s->anchorValid){
    double dx=(double)x-s->x,dy=(double)y-s->y,dz=(double)z-s->z;
-   double metres=s->distanceMeters?s->distanceMeters:80;
+   double metres=s->distanceMeters?s->distanceMeters:160;
    if(dx*dx+dy*dy+dz*dz>=metres*metres){
-    atomic_store(&s->permitUntilMS,now+2000);s->x=x;s->y=y;s->z=z;
+    atomic_store(&s->permitUntilMS,now+5000);s->x=x;s->y=y;s->z=z;
    }
   }else{s->anchorValid=true;s->x=x;s->y=y;s->z=z;}
  }

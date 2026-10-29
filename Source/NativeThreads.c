@@ -15,7 +15,7 @@ void pg_engine_thread_attributes(pthread_attr_t *attrs) {
   static int qos = -1;
   if (qos < 0) {
     const char *v = getenv("PG_ENGINE_QOS");
-    qos = v && !strcmp(v, "off") ? 0 : v && !strcmp(v, "interactive") ? QOS_CLASS_USER_INTERACTIVE : QOS_CLASS_USER_INITIATED;
+    qos = v && !strcmp(v, "off") ? 0 : v && !strcmp(v, "initiated") ? QOS_CLASS_USER_INITIATED : QOS_CLASS_USER_INTERACTIVE;
     char line[96]; snprintf(line, sizeof line, "Engine threads run at QoS %s.", qos == QOS_CLASS_USER_INTERACTIVE ? "user-interactive" : qos ? "user-initiated" : "default"); pg_log(line);
   }
   if (qos) pthread_attr_set_qos_class_np(attrs, (qos_class_t)qos, 0);

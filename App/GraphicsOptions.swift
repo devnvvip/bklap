@@ -205,6 +205,8 @@ enum GraphicsConfiguration {
         let own = GraphicsDetail.all.compactMap { detail in overrides[detail.option].map { "\(detail.option) \($0)" } }
         // The engine and renderer read PG_LITE when they start, after this. The Lite build always sets it.
         if preset == .lite { setenv("PG_LITE", "1", 1) } else if !Theme.isLite { unsetenv("PG_LITE") }
+        setenv("PG_ENGINE_CORES", "4", 1)
+        setenv("PG_ENGINE_QOS", "interactive", 1)
         PGSetMemoryCap(Int32(settings.memoryCapMB))
         let enableSharper = true
         PGSetSharperUpscaling(1)

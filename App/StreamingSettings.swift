@@ -38,7 +38,11 @@ enum StreamingSettings {
         setenv("PG_DISTANCE_STREAMING", distanceStreaming ? "1" : "0", 1)
         setenv("PG_DISTANCE_RESERVE_MB", String(selectedReserveMB), 1)
         setenv("PG_DISTANCE_METERS", String(reclaimDistance), 1)
-        if textureBudgetMB == 0 { unsetenv("PG_VIDEO_MEMORY_MB") }
-        else { setenv("PG_VIDEO_MEMORY_MB", String(textureBudgetMB), 1) }
+        if textureBudgetMB == 0 {
+            let defaultMB = ProcessInfo.processInfo.physicalMemory >= 7 * 1024 * 1024 * 1024 ? "1280" : "768"
+            setenv("PG_VIDEO_MEMORY_MB", defaultMB, 1)
+        } else {
+            setenv("PG_VIDEO_MEMORY_MB", String(textureBudgetMB), 1)
+        }
     }
 }
