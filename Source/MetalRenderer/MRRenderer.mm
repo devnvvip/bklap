@@ -2118,6 +2118,17 @@ static void present(uint32_t texId) {
 	f.lastSerial = R->serial - 1;
 	R->presents++;
 	double now = CACurrentMediaTime();
+	static double sLastPresentTime = 0.0;
+	if (sLastPresentTime > 0.0) {
+		double elapsed = now - sLastPresentTime;
+		const double kTargetFrameTime = 1.0 / 60.0; // Khoa cung 60.0 FPS
+		if (elapsed < kTargetFrameTime) {
+			double remain = kTargetFrameTime - elapsed;
+			usleep((useconds_t)(remain * 1000000.0));
+			now = CACurrentMediaTime();
+		}
+	}
+	sLastPresentTime = now;
 	if (R->statPresentAt) { double gap = (now - R->statPresentAt) * 1000; if (gap > 50) R->longFrames++; if (gap > R->worstFrameMs) R->worstFrameMs = gap; }
 	R->statPresentAt = now;
 	R->lastPresent.store(now);
@@ -2130,7 +2141,7 @@ static void present(uint32_t texId) {
 	if (!R->worldSent && (R->worldSince || d > 300)) {
 		if (!R->worldSince) R->worldSince = ms;
 		if (R->pendingSkips != R->pendingAtPresent) R->worldClean = 0; else if (!R->worldClean) R->worldClean = ms;
-		if ((R->worldClean && ms - R->worldClean >= 500) || ms - R->worldSince >= 60000) {
+		if ((R->worldClean && ms - R->worldClean >= 200) || ms - R->worldSince >= 60000) {
 			R->worldSent = true;
 			logf("Metal renderer: world shown after %.1f s of pipeline compiles (%u pipelines made)", (ms - R->worldSince) / 1000, R->pipesMade);
 			pg_log("{\"pct\":100,\"label\":\"Ready\",\"world\":true}");
