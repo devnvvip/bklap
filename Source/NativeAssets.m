@@ -536,7 +536,7 @@ void pg_assets_configure(const char *manifest,const char *root) {
       if(assetTimingFD>=0){const char *header="start_ms,end_ms,id,offset,length,result,source,prefetch,network_ms,lock_ms,network_bytes\n";write(assetTimingFD,header,strlen(header));}
     }
     NSURLSessionConfiguration *config=[NSURLSessionConfiguration ephemeralSessionConfiguration];
-    config.HTTPMaximumConnectionsPerHost=assetQueuedHints?16:8;config.timeoutIntervalForRequest=25;config.timeoutIntervalForResource=60;
+    config.HTTPMaximumConnectionsPerHost=32;config.timeoutIntervalForRequest=15;config.timeoutIntervalForResource=60;
     assetSession=[NSURLSession sessionWithConfiguration:config];
     atomic_store(&nextReport,25*1024*1024);
     prefetchQueue=dispatch_queue_create("playgta5.assets.prefetch",assetBalancedQOS?dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_CONCURRENT,QOS_CLASS_UTILITY,0):DISPATCH_QUEUE_CONCURRENT);

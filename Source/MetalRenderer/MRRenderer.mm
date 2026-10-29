@@ -2130,7 +2130,7 @@ static void present(uint32_t texId) {
 	if (!R->worldSent && (R->worldSince || d > 300)) {
 		if (!R->worldSince) R->worldSince = ms;
 		if (R->pendingSkips != R->pendingAtPresent) R->worldClean = 0; else if (!R->worldClean) R->worldClean = ms;
-		if ((R->worldClean && ms - R->worldClean >= 1500) || ms - R->worldSince >= 60000) {
+		if ((R->worldClean && ms - R->worldClean >= 500) || ms - R->worldSince >= 60000) {
 			R->worldSent = true;
 			logf("Metal renderer: world shown after %.1f s of pipeline compiles (%u pipelines made)", (ms - R->worldSince) / 1000, R->pipesMade);
 			pg_log("{\"pct\":100,\"label\":\"Ready\",\"world\":true}");

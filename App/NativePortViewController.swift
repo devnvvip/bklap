@@ -54,20 +54,24 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
     private let fpsLabel = UILabel()
     private let iosmodsWatermarkLabel = UILabel()
     private let rainbowColors: [UIColor] = [
-        UIColor(red: 1.0, green: 0.1, blue: 0.1, alpha: 1.0),   // Đỏ tươi
-        UIColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1.0),  // Cam
-        UIColor(red: 1.0, green: 0.85, blue: 0.0, alpha: 1.0),  // Vàng
-        UIColor(red: 0.2, green: 1.0, blue: 0.2, alpha: 1.0),   // Lục neon
-        UIColor(red: 0.0, green: 1.0, blue: 0.8, alpha: 1.0),   // Lục lam
-        UIColor(red: 0.0, green: 0.7, blue: 1.0, alpha: 1.0),   // Lam sáng
-        UIColor(red: 0.2, green: 0.4, blue: 1.0, alpha: 1.0),   // Lam đậm
-        UIColor(red: 0.55, green: 0.1, blue: 0.95, alpha: 1.0), // Chàm
-        UIColor(red: 0.85, green: 0.1, blue: 0.9, alpha: 1.0),  // Tím hồng
-        UIColor(red: 1.0, green: 0.1, blue: 0.5, alpha: 1.0)   // Hồng cánh sen
+        UIColor(red: 1.0, green: 0.05, blue: 0.1, alpha: 1.0),   // Đỏ cờ neon
+        UIColor(red: 1.0, green: 0.25, blue: 0.0, alpha: 1.0),   // Đỏ cam
+        UIColor(red: 1.0, green: 0.5, blue: 0.0, alpha: 1.0),    // Cam tươi
+        UIColor(red: 1.0, green: 0.75, blue: 0.0, alpha: 1.0),   // Vàng cam
+        UIColor(red: 1.0, green: 0.95, blue: 0.0, alpha: 1.0),   // Vàng chanh
+        UIColor(red: 0.5, green: 1.0, blue: 0.0, alpha: 1.0),    // Vàng lục
+        UIColor(red: 0.0, green: 1.0, blue: 0.25, alpha: 1.0),   // Lục neon
+        UIColor(red: 0.0, green: 1.0, blue: 0.75, alpha: 1.0),   // Lục lam sáng
+        UIColor(red: 0.0, green: 0.85, blue: 1.0, alpha: 1.0),   // Lam ngọc
+        UIColor(red: 0.0, green: 0.5, blue: 1.0, alpha: 1.0),    // Lam biển
+        UIColor(red: 0.35, green: 0.2, blue: 1.0, alpha: 1.0),   // Lam chàm
+        UIColor(red: 0.65, green: 0.1, blue: 1.0, alpha: 1.0),   // Tím violet
+        UIColor(red: 0.95, green: 0.05, blue: 0.9, alpha: 1.0),  // Tím hồng
+        UIColor(red: 1.0, green: 0.1, blue: 0.45, alpha: 1.0)    // Hồng cánh sen
     ]
     private func cycleRainbowWatermark(index: Int) {
         let nextIndex = (index + 1) % rainbowColors.count
-        UIView.transition(with: iosmodsWatermarkLabel, duration: 0.25, options: [.transitionCrossDissolve, .allowUserInteraction], animations: {
+        UIView.transition(with: iosmodsWatermarkLabel, duration: 0.12, options: [.transitionCrossDissolve, .allowUserInteraction], animations: {
             self.iosmodsWatermarkLabel.textColor = self.rainbowColors[nextIndex]
         }) { [weak self] _ in
             self?.cycleRainbowWatermark(index: nextIndex)
@@ -76,8 +80,8 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
     // Top left, or bottom left while the minimap sits at the top (GTA-131).
     private lazy var fpsAtTop = fpsLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8)
     private lazy var fpsAtBottom = fpsLabel.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8)
-    private lazy var watermarkAtTop = iosmodsWatermarkLabel.topAnchor.constraint(equalTo: fpsLabel.bottomAnchor, constant: 4)
-    private lazy var watermarkAtBottom = iosmodsWatermarkLabel.bottomAnchor.constraint(equalTo: fpsLabel.topAnchor, constant: -4)
+    private lazy var watermarkAtTop = iosmodsWatermarkLabel.topAnchor.constraint(equalTo: fpsLabel.bottomAnchor, constant: 2)
+    private lazy var watermarkAtBottom = iosmodsWatermarkLabel.bottomAnchor.constraint(equalTo: fpsLabel.topAnchor, constant: -2)
     private func placeFPSLabel() {
         let bottom = GameSettings.shared.minimapAtTop
         fpsAtTop.isActive = !bottom
@@ -302,7 +306,7 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         view.addSubview(fpsLabel)
 
         iosmodsWatermarkLabel.text = "Made by iosmods"
-        iosmodsWatermarkLabel.font = .systemFont(ofSize: 10, weight: .bold)
+        iosmodsWatermarkLabel.font = .systemFont(ofSize: 9, weight: .heavy)
         iosmodsWatermarkLabel.textColor = rainbowColors[0]
         iosmodsWatermarkLabel.shadowColor = UIColor.black.withAlphaComponent(0.9)
         iosmodsWatermarkLabel.shadowOffset = CGSize(width: 1, height: 1)
