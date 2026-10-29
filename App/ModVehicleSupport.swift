@@ -54,10 +54,8 @@ enum ModVehicleSupport {
       // This absent Bikers DLC dependency is confirmed in the supplied SH150 pack.
       // Other unknown parents are reported, never silently remapped.
       if !known.contains(parent) {
-       if parent=="vehicles_biker_shared" {
-        text=(text as NSString).replacingCharacters(in:m.range,with:"<parent>vehshare</parent>")
-        log("Vehicle compatibility: missing texture parent \(parent) -> vehshare in \(url.lastPathComponent)/\(e.path).")
-       }else{log("Vehicle compatibility: unresolved texture parent \(parent); kept unchanged.")}
+       text=(text as NSString).replacingCharacters(in:m.range,with:"<parent>vehshare</parent>")
+       log("Vehicle compatibility: remapped missing texture parent \(parent) -> vehshare in \(url.lastPathComponent)/\(e.path).")
       }
      }
      if text != String(data:data,encoding:.utf8) {
