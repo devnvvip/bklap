@@ -1,0 +1,52 @@
+name: Build IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      server:
+        description: "Link server game của bạn (https, truy cập được từ internet)"
+        required: true
+        default: "https://alan-isolated-proudly-irrigation.trycloudflare.com"
+      flags:
+        description: "Tuỳ chọn: --free và/hoặc --lite (để trống nếu không cần)"
+        required: false
+        default: ""
+  push:
+    branches: [main]
+
+env:
+  # Link server của bạn khi chạy tự động (push). Sửa dòng này thành link thật.
+  GAME_SERVER: "https://alan-isolated-proudly-irrigation.trycloudflare.com"
+  # Tuỳ chọn: link tải pgmsl-macos-arm64.tar.gz nếu không để file trong build-tools/
+  # PGMSL_PREBUILT_URL: "https://..."
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cài xcodegen
+        run: brew install xcodegen
+
+      - name: Build IPA
+        run: |
+          SERVER="${{ github.event.inputs.server || env.GAME_SERVER }}"
+          FLAGS="${{ github.event.inputs.flags }}"
+          chmod +x build_ipa.sh
+          ./build_ipa.sh "$SERVER" $FLAGS
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: GTA5Port-ipa
+          path: GTA5Port*.ipa
+          if-no-files-found: error
+
+      - name: Upload log nếu lỗi
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: app/Build/xcodebuild.log
+          if-no-files-found: ignore
