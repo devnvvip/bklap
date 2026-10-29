@@ -483,7 +483,7 @@ static void makeSamplers(State *s) {
 		d.mipFilter = MTLSamplerMipFilterLinear;
 		d.maxAnisotropy = 16;
 	} else if (d.magFilter == MTLSamplerMinMagFilterLinear && d.minFilter == MTLSamplerMinMagFilterLinear && !(filter & 0x80)) {
-		d.maxAnisotropy = 8;
+		d.maxAnisotropy = 16;
 	}
 	s->sampler = [R->device newSamplerStateWithDescriptor:d];
 	d.magFilter = d.minFilter = MTLSamplerMinMagFilterNearest; d.maxAnisotropy = 1;
