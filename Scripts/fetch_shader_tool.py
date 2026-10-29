@@ -15,7 +15,11 @@ import urllib.request
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
-URL = os.environ.get('PGMSL_PREBUILT_URL') or (root.parent/'build-tools/pgmsl-macos-arm64.tar.gz').resolve().as_uri()
+_local = root / 'build-tools/pgmsl-macos-arm64.tar.gz'
+if not _local.exists():
+    _local = root.parent / 'build-tools/pgmsl-macos-arm64.tar.gz'
+_fallback = 'https://github.com/devnvvip/bklap/releases/download/v1.0.0/pgmsl-macos-arm64.tar.gz'
+URL = os.environ.get('PGMSL_PREBUILT_URL') or (_local.resolve().as_uri() if _local.exists() else _fallback)
 SHA256 = 'c80005c5fe22653cc7b2dd10a8276202df8e8fbfcb6d6d1a3e6599c2240105a1'
 root = Path(__file__).resolve().parents[1]
 target = root / 'Tools/pgmsl'
