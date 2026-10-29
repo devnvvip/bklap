@@ -20,7 +20,10 @@ static inline uint64_t pg_distance_reserve_for_limit(uint64_t requestedMB,uint64
 }
 static inline uint64_t pg_distance_available(const PGDistanceStreaming *s,uint64_t engine,uint64_t available){
  uint64_t growth=available>s->reserveBytes?available-s->reserveBytes:0;
- return engine<growth?engine:growth;
+ uint64_t minMapStream = 128ull << 20;
+ if(growth < minMapStream && available > (64ull << 20)) growth = available - (64ull << 20);
+ if(growth > engine) growth = engine;
+ return growth;
 }
 static inline void pg_distance_sample(PGDistanceStreaming *s,uint64_t now,bool valid,float x,float y,float z,bool scene){
  if(scene){
@@ -42,16 +45,8 @@ static inline int64_t pg_distance_budget(PGDistanceStreaming *s,uint64_t now,int
  if(engine<0)return engine;
  uint64_t growth=pg_distance_available(s,(uint64_t)engine,available);
  int64_t result=growth>INT64_MAX?INT64_MAX:(int64_t)growth;
- uint64_t target=s->reserveBytes?s->reserveBytes+(64ull<<20):(256ull<<20);
- if(available>=target)return result;
- // Only critical headroom can bypass movement; never loop a negative answer per poll.
- bool emergency=s->reserveBytes&&available<s->reserveBytes/2;
- uint64_t until=atomic_load(&s->permitUntilMS);
- bool permit=until&&now<=until;
- if(!emergency&&!permit)return result;
- uint64_t next=atomic_load(&s->nextReclaimMS);
- if(now<next||!atomic_compare_exchange_strong(&s->nextReclaimMS,&next,now+500))return result;
- if(permit)atomic_compare_exchange_strong(&s->permitUntilMS,&until,0);
- uint64_t deficit=target-available;
- return -(int64_t)(deficit<(16ull<<20)?deficit:(16ull<<20));
+ if(result < (64ll << 20) && available > (64ull << 20)) {
+   result = 64ll << 20; // Luon cap du ngan sach toi thieu 64MB de load map day du
+ }
+ return result;
 }

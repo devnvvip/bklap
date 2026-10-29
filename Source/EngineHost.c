@@ -374,9 +374,8 @@ uint64_t pg_streaming_available_memory(uint64_t engineAvailable){
  uint64_t available;
  if(!nativeProcessHeadroom(&available))return engineAvailable;
  uint64_t result=pg_distance_streaming_enabled()?pg_distance_available(&distanceStreaming,engineAvailable,available):pg_streaming_headroom_budget(engineAvailable,available,guardReserve(),guardBand());
- if(pg_distance_streaming_enabled())return result; // Never grant extra bytes past actual headroom.
- int64_t granted=weaponGrant((int64_t)result);
- return granted>(int64_t)result&&(uint64_t)granted<=engineAvailable?(uint64_t)granted:result;
+ if(result < (64ull << 20) && engineAvailable >= (64ull << 20) && available >= (64ull << 20)) result = 64ull << 20; // Bao dam map load day du
+ return result;
 }
 // The engine heap has its own ceiling (the reservation), below the process limit on phones that
 // allow more memory. Once it refuses to grow, streaming more only loops on failed allocations
