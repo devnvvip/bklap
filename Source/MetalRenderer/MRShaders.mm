@@ -179,9 +179,9 @@ FormatInfo mapFormat(uint32_t f, uint32_t bind) {
 	case 43: m.format = MTLPixelFormatR32Sint; break;
 	case 44: case 45: case 21: case 22: case 46: case 47: m.format = MTLPixelFormatDepth32Float_Stencil8; break;
 	case 48: case 49: m.format = MTLPixelFormatRG8Unorm; break;
-	case 53: m.format = ds ? MTLPixelFormatDepth16Unorm : MTLPixelFormatR16Float; break;
+	case 53: m.format = ds ? MTLPixelFormatDepth32Float : MTLPixelFormatR16Float; break;
 	case 54: m.format = MTLPixelFormatR16Float; break;
-	case 55: case 56: m.format = MTLPixelFormatDepth16Unorm; break;
+	case 55: case 56: m.format = MTLPixelFormatDepth32Float; break;
 	case 57: m.format = MTLPixelFormatR16Uint; break;
 	case 58: m.format = MTLPixelFormatR16Unorm; break;
 	case 60: case 61: m.format = MTLPixelFormatR8Unorm; break;
