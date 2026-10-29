@@ -47,10 +47,16 @@ final class GameSettings {
     /// A cloud build can bake in a default (Info.plist PGDefaultAssetServer).
     var assetServer: String {
         get {
-            if let saved = defaults.string(forKey: "assetServer"), !saved.isEmpty { return saved }
-            return Bundle.main.object(forInfoDictionaryKey: "PGDefaultAssetServer") as? String ?? ""
+            if let saved = defaults.string(forKey: "assetServer"), !saved.isEmpty {
+                return NativePortViewController.normalizeServerAddress(saved)
+            }
+            let def = Bundle.main.object(forInfoDictionaryKey: "PGDefaultAssetServer") as? String ?? ""
+            return NativePortViewController.normalizeServerAddress(def)
         }
-        set { defaults.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines), forKey: "assetServer") }
+        set {
+            let normalized = NativePortViewController.normalizeServerAddress(newValue)
+            defaults.set(normalized, forKey: "assetServer")
+        }
     }
 
     // Touch controls.

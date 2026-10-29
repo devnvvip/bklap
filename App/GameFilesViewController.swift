@@ -157,7 +157,7 @@ final class GameFilesViewController: UIViewController, UIDocumentPickerDelegate,
     }
 
     private func linkSection() -> UIView {
-        linkField.placeholder = "https://…"
+        linkField.placeholder = "IP VPS, Port (VD: 1.2.3.4:8080) hoặc https://…"
         linkField.text = GameSettings.shared.assetServer
         linkField.keyboardType = .URL
         linkField.autocapitalizationType = .none

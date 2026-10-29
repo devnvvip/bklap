@@ -38,6 +38,9 @@ static void PGReapplyMods(void);static bool modsWantLocal;static bool modsLocked
 void PGSetAssetServer(const char *url){
   NSString *value=[[NSString stringWithUTF8String:url?url:""] stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
   while([value hasSuffix:@"/"])value=[value substringToIndex:value.length-1];
+  if(value.length && ![value.lowercaseString hasPrefix:@"http://"] && ![value.lowercaseString hasPrefix:@"https://"]){
+    value=[@"http://" stringByAppendingString:value];
+  }
   assetServer=value;
   // Mods installed since the file list was first read (Settings › Mods on the home screen) count too.
   if(modsBaseFiles&&!modsLocked)PGReapplyMods();
@@ -551,6 +554,9 @@ static NSData *fetchRangeImpl(NSString *path,uint64_t offset,uint64_t length,uin
   NSURL *url=[NSURL URLWithString:[[assetServer stringByAppendingString:@"/data/"] stringByAppendingString:escaped]];
   NSMutableURLRequest *request=[NSMutableURLRequest requestWithURL:url];
   [request setValue:[NSString stringWithFormat:@"bytes=%llu-%llu",offset,offset+length-1] forHTTPHeaderField:@"Range"];
+  [request setValue:(assetVersion?:@"3095") forHTTPHeaderField:@"X-Game-Version"];
+  [request setValue:@"GTA5-PC-1.0.3095.0" forHTTPHeaderField:@"User-Agent"];
+  [request setValue:@"*/*" forHTTPHeaderField:@"Accept"];
   dispatch_semaphore_t done=dispatch_semaphore_create(0);
   __block NSData *received=nil;__block NSHTTPURLResponse *reply=nil;__block NSError *failure=nil;
   NSURLSessionDataTask *task=[assetSession dataTaskWithRequest:request completionHandler:^(NSData *data,NSURLResponse *response,NSError *error){received=data;reply=(NSHTTPURLResponse *)response;failure=error;dispatch_semaphore_signal(done);}];

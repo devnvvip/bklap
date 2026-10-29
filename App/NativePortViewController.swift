@@ -1077,9 +1077,18 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         let server = Self.isServerAddress(GameSettings.shared.assetServer)
         launchButton.isEnabled = !engineStarted && !GameInstallManager.shared.isRunning && (GameFolder.isChosen || server) && GameSettings.shared.gameModeChoice != nil
     }
+    static func normalizeServerAddress(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        if trimmed.lowercased().hasPrefix("http://") || trimmed.lowercased().hasPrefix("https://") {
+            return trimmed
+        }
+        return "http://" + trimmed
+    }
     static func isServerAddress(_ text: String) -> Bool {
-        guard let url = URL(string: text), let scheme = url.scheme?.lowercased(), let host = url.host else { return false }
-        return (scheme == "http" || scheme == "https") && !host.isEmpty
+        let normalized = normalizeServerAddress(text)
+        guard let url = URL(string: normalized), let host = url.host else { return false }
+        return !host.isEmpty
     }
     /// The game files screen: checking, finding, downloading and unpacking.
     /// A script mod opened the game's on-screen keyboard: the Mod keys keyboard takes the text.
