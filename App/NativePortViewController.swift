@@ -52,6 +52,24 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
     private var queue: MTLCommandQueue?
     private let output = UITextView()
     private let fpsLabel = UILabel()
+    private let iosmodsWatermarkLabel = UILabel()
+    private let rainbowColors: [UIColor] = [
+        UIColor(red: 1.0, green: 0.0, blue: 0.0, alpha: 1.0),   // Đỏ
+        UIColor(red: 1.0, green: 0.5, blue: 0.0, alpha: 1.0),   // Cam
+        UIColor(red: 1.0, green: 1.0, blue: 0.0, alpha: 1.0),   // Vàng
+        UIColor(red: 0.0, green: 1.0, blue: 0.0, alpha: 1.0),   // Lục
+        UIColor(red: 0.0, green: 0.5, blue: 1.0, alpha: 1.0),   // Lam
+        UIColor(red: 0.29, green: 0.0, blue: 0.51, alpha: 1.0), // Chàm
+        UIColor(red: 0.58, green: 0.0, blue: 0.83, alpha: 1.0)  // Tím
+    ]
+    private func cycleRainbowWatermark(index: Int) {
+        let nextIndex = (index + 1) % rainbowColors.count
+        UIView.transition(with: iosmodsWatermarkLabel, duration: 0.7, options: [.transitionCrossDissolve, .allowUserInteraction], animations: {
+            self.iosmodsWatermarkLabel.textColor = self.rainbowColors[nextIndex]
+        }) { [weak self] _ in
+            self?.cycleRainbowWatermark(index: nextIndex)
+        }
+    }
     // Top left, or bottom left while the minimap sits at the top (GTA-131).
     private lazy var fpsAtTop = fpsLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8)
     private lazy var fpsAtBottom = fpsLabel.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8)
@@ -190,6 +208,11 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
     override var prefersPointerLocked: Bool { engineStarted && GameSettings.shared.keyboardMouse && KeyboardMouse.shared.hasMouse }
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscape }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        view.bringSubviewToFront(iosmodsWatermarkLabel)
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
         UIApplication.shared.isIdleTimerDisabled = true
@@ -265,6 +288,21 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         fpsLabel.accessibilityLabel = AppLanguage.choose("Game frame rate")
         fpsLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(fpsLabel)
+
+        iosmodsWatermarkLabel.text = "Made with ❤️ by iosmods"
+        iosmodsWatermarkLabel.font = .systemFont(ofSize: 13, weight: .bold)
+        iosmodsWatermarkLabel.textColor = rainbowColors[0]
+        iosmodsWatermarkLabel.shadowColor = UIColor.black.withAlphaComponent(0.85)
+        iosmodsWatermarkLabel.shadowOffset = CGSize(width: 1, height: 1)
+        iosmodsWatermarkLabel.backgroundColor = UIColor.black.withAlphaComponent(0.4)
+        iosmodsWatermarkLabel.layer.cornerRadius = 6
+        iosmodsWatermarkLabel.clipsToBounds = true
+        iosmodsWatermarkLabel.textAlignment = .center
+        iosmodsWatermarkLabel.isUserInteractionEnabled = false
+        iosmodsWatermarkLabel.translatesAutoresizingMaskIntoConstraints = false
+        iosmodsWatermarkLabel.layer.zPosition = 9999
+        view.addSubview(iosmodsWatermarkLabel)
+        cycleRainbowWatermark(index: 0)
         inputTestLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .semibold)
         inputTestLabel.textColor = .white
         inputTestLabel.backgroundColor = UIColor.black.withAlphaComponent(0.6)
@@ -325,6 +363,13 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         // Diagnostics overlay sits over the transparent gesture surface but
         // cannot intercept touches (isUserInteractionEnabled=false).
         view.bringSubviewToFront(inputTestLabel)
+        view.bringSubviewToFront(iosmodsWatermarkLabel)
+        NSLayoutConstraint.activate([
+            iosmodsWatermarkLabel.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 12),
+            iosmodsWatermarkLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            iosmodsWatermarkLabel.heightAnchor.constraint(equalToConstant: 26),
+            iosmodsWatermarkLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 185)
+        ])
         NSLayoutConstraint.activate([
             touchControls.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             touchControls.trailingAnchor.constraint(equalTo: view.trailingAnchor),
