@@ -259,7 +259,14 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(languageChanged), name: AppLanguage.changed, object: nil)
         home.settingsButton.addAction(UIAction { [weak self] _ in self?.showSettings() }, for: .touchUpInside)
         home.layoutButton.addAction(UIAction { [weak self] _ in self?.showLayoutEditor() }, for: .touchUpInside)
-        home.onFiles = { [weak self] in self?.showGameFiles() }
+        home.onFiles = { [weak self] in
+            guard let self else { return }
+            if GameSettings.shared.gameMode == .online {
+                self.promptForOnlineServer()
+            } else {
+                self.showGameFiles()
+            }
+        }
         home.onMap = { [weak self] index in
             guard let self, !self.engineStarted else { return }
             GameSettings.shared.sandboxMap = index
@@ -1066,6 +1073,14 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         // A server address that isn't a web address would boot the game with no files at all.
         let raw = GameSettings.shared.assetServer
         let server = Self.isServerAddress(raw) ? raw : ""
+        if GameSettings.shared.gameMode == .online {
+            let ok = !server.isEmpty
+            home.setFiles(ok ? .ready : .attention,
+                          title: ok ? AppLanguage.choose("Chế độ Online (VPS)") : AppLanguage.choose("Chưa nhập IP/Port VPS"),
+                          detail: ok ? "\(raw) · Chạm để đổi IP/Port" : AppLanguage.choose("Chạm vào đây để nhập IP VPS hoặc Port"))
+            updatePlayEnabled()
+            return
+        }
         if GameFolder.isChosen {
             let place = GameFolder.inAppFolder ? AppLanguage.choose("In the GTA V Port folder") : AppLanguage.choose("On this iPhone")
             let problems = GameFolder.acceptedProblemCount

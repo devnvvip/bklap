@@ -536,7 +536,7 @@ void pg_assets_configure(const char *manifest,const char *root) {
       if(assetTimingFD>=0){const char *header="start_ms,end_ms,id,offset,length,result,source,prefetch,network_ms,lock_ms,network_bytes\n";write(assetTimingFD,header,strlen(header));}
     }
     NSURLSessionConfiguration *config=[NSURLSessionConfiguration ephemeralSessionConfiguration];
-    config.HTTPMaximumConnectionsPerHost=32;config.timeoutIntervalForRequest=15;config.timeoutIntervalForResource=60;
+    config.HTTPMaximumConnectionsPerHost=32;config.timeoutIntervalForRequest=30;config.timeoutIntervalForResource=60;
     assetSession=[NSURLSession sessionWithConfiguration:config];
     atomic_store(&nextReport,25*1024*1024);
     prefetchQueue=dispatch_queue_create("playgta5.assets.prefetch",assetBalancedQOS?dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_CONCURRENT,QOS_CLASS_UTILITY,0):DISPATCH_QUEUE_CONCURRENT);
@@ -554,11 +554,11 @@ static NSData *fetchRangeImpl(NSString *path,uint64_t offset,uint64_t length,uin
   NSURL *url=[NSURL URLWithString:[[assetServer stringByAppendingString:@"/data/"] stringByAppendingString:escaped]];
   NSMutableURLRequest *request=[NSMutableURLRequest requestWithURL:url];
   [request setValue:[NSString stringWithFormat:@"bytes=%llu-%llu",offset,offset+length-1] forHTTPHeaderField:@"Range"];
-  [request setValue:(assetVersion?:@"3095") forHTTPHeaderField:@"X-Game-Version"];
-  [request setValue:@"3095" forHTTPHeaderField:@"Game-Build"];
-  [request setValue:@"b3095" forHTTPHeaderField:@"X-Server-Version"];
-  [request setValue:@"b3095" forHTTPHeaderField:@"X-CitizenFX-Version"];
-  [request setValue:@"GTA5-PC-1.0.3095.0" forHTTPHeaderField:@"User-Agent"];
+  [request setValue:(assetVersion?:@"3407") forHTTPHeaderField:@"X-Game-Version"];
+  [request setValue:@"3407" forHTTPHeaderField:@"Game-Build"];
+  [request setValue:@"b3407" forHTTPHeaderField:@"X-Server-Version"];
+  [request setValue:@"b3407" forHTTPHeaderField:@"X-CitizenFX-Version"];
+  [request setValue:@"GTA5-PC-1.0.3407.0" forHTTPHeaderField:@"User-Agent"];
   [request setValue:@"*/*" forHTTPHeaderField:@"Accept"];
   dispatch_semaphore_t done=dispatch_semaphore_create(0);
   __block NSData *received=nil;__block NSHTTPURLResponse *reply=nil;__block NSError *failure=nil;
