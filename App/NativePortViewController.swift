@@ -54,17 +54,20 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
     private let fpsLabel = UILabel()
     private let iosmodsWatermarkLabel = UILabel()
     private let rainbowColors: [UIColor] = [
-        UIColor(red: 1.0, green: 0.0, blue: 0.0, alpha: 1.0),   // Đỏ
-        UIColor(red: 1.0, green: 0.5, blue: 0.0, alpha: 1.0),   // Cam
-        UIColor(red: 1.0, green: 1.0, blue: 0.0, alpha: 1.0),   // Vàng
-        UIColor(red: 0.0, green: 1.0, blue: 0.0, alpha: 1.0),   // Lục
-        UIColor(red: 0.0, green: 0.5, blue: 1.0, alpha: 1.0),   // Lam
-        UIColor(red: 0.29, green: 0.0, blue: 0.51, alpha: 1.0), // Chàm
-        UIColor(red: 0.58, green: 0.0, blue: 0.83, alpha: 1.0)  // Tím
+        UIColor(red: 1.0, green: 0.1, blue: 0.1, alpha: 1.0),   // Đỏ tươi
+        UIColor(red: 1.0, green: 0.45, blue: 0.0, alpha: 1.0),  // Cam
+        UIColor(red: 1.0, green: 0.85, blue: 0.0, alpha: 1.0),  // Vàng
+        UIColor(red: 0.2, green: 1.0, blue: 0.2, alpha: 1.0),   // Lục neon
+        UIColor(red: 0.0, green: 1.0, blue: 0.8, alpha: 1.0),   // Lục lam
+        UIColor(red: 0.0, green: 0.7, blue: 1.0, alpha: 1.0),   // Lam sáng
+        UIColor(red: 0.2, green: 0.4, blue: 1.0, alpha: 1.0),   // Lam đậm
+        UIColor(red: 0.55, green: 0.1, blue: 0.95, alpha: 1.0), // Chàm
+        UIColor(red: 0.85, green: 0.1, blue: 0.9, alpha: 1.0),  // Tím hồng
+        UIColor(red: 1.0, green: 0.1, blue: 0.5, alpha: 1.0)   // Hồng cánh sen
     ]
     private func cycleRainbowWatermark(index: Int) {
         let nextIndex = (index + 1) % rainbowColors.count
-        UIView.transition(with: iosmodsWatermarkLabel, duration: 0.7, options: [.transitionCrossDissolve, .allowUserInteraction], animations: {
+        UIView.transition(with: iosmodsWatermarkLabel, duration: 0.25, options: [.transitionCrossDissolve, .allowUserInteraction], animations: {
             self.iosmodsWatermarkLabel.textColor = self.rainbowColors[nextIndex]
         }) { [weak self] _ in
             self?.cycleRainbowWatermark(index: nextIndex)
@@ -73,10 +76,14 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
     // Top left, or bottom left while the minimap sits at the top (GTA-131).
     private lazy var fpsAtTop = fpsLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8)
     private lazy var fpsAtBottom = fpsLabel.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8)
+    private lazy var watermarkAtTop = iosmodsWatermarkLabel.topAnchor.constraint(equalTo: fpsLabel.bottomAnchor, constant: 4)
+    private lazy var watermarkAtBottom = iosmodsWatermarkLabel.bottomAnchor.constraint(equalTo: fpsLabel.topAnchor, constant: -4)
     private func placeFPSLabel() {
         let bottom = GameSettings.shared.minimapAtTop
         fpsAtTop.isActive = !bottom
         fpsAtBottom.isActive = bottom
+        watermarkAtTop.isActive = !bottom
+        watermarkAtBottom.isActive = bottom
     }
     private let inputTestLabel = UILabel()
     private var wasMouseSwipeActive = false
@@ -290,13 +297,13 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         fpsLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(fpsLabel)
 
-        iosmodsWatermarkLabel.text = "Made with ❤️ by iosmods"
-        iosmodsWatermarkLabel.font = .systemFont(ofSize: 13, weight: .bold)
+        iosmodsWatermarkLabel.text = "Made by iosmods"
+        iosmodsWatermarkLabel.font = .systemFont(ofSize: 10, weight: .bold)
         iosmodsWatermarkLabel.textColor = rainbowColors[0]
-        iosmodsWatermarkLabel.shadowColor = UIColor.black.withAlphaComponent(0.85)
+        iosmodsWatermarkLabel.shadowColor = UIColor.black.withAlphaComponent(0.9)
         iosmodsWatermarkLabel.shadowOffset = CGSize(width: 1, height: 1)
-        iosmodsWatermarkLabel.backgroundColor = UIColor.black.withAlphaComponent(0.4)
-        iosmodsWatermarkLabel.layer.cornerRadius = 6
+        iosmodsWatermarkLabel.backgroundColor = UIColor.black.withAlphaComponent(0.45)
+        iosmodsWatermarkLabel.layer.cornerRadius = 4
         iosmodsWatermarkLabel.clipsToBounds = true
         iosmodsWatermarkLabel.textAlignment = .center
         iosmodsWatermarkLabel.isUserInteractionEnabled = false
@@ -367,10 +374,10 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         view.bringSubviewToFront(iosmodsWatermarkLabel)
         NSLayoutConstraint.activate([
             iosmodsWatermarkLabel.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 12),
-            iosmodsWatermarkLabel.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            iosmodsWatermarkLabel.heightAnchor.constraint(equalToConstant: 26),
-            iosmodsWatermarkLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 185)
+            iosmodsWatermarkLabel.heightAnchor.constraint(equalToConstant: 18),
+            iosmodsWatermarkLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 105)
         ])
+        placeFPSLabel()
         NSLayoutConstraint.activate([
             touchControls.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             touchControls.trailingAnchor.constraint(equalTo: view.trailingAnchor),
