@@ -117,10 +117,15 @@ struct DeviceTier {
         #endif
     }
 
+    var isA18OrNewer: Bool {
+        model.contains("iPhone17,") || physicalMemoryMB >= 7000
+    }
     /// The Metal renderer needs about 700 MB less than the old renderer did: a 6 GB phone on a
     /// free Apple ID (about 3 GB limit) runs Battery with room to spare.
+    /// On iPhone 16 Pro (A18), recommended preset is Ultra for beautiful graphics at 720p/540p 60 FPS.
     var recommended: GraphicsPreset {
-        GraphicsPreset.liteAvailable && memoryLimitMB < 2600 ? .lite : memoryLimitMB < 3400 ? .battery : memoryLimitMB < 4600 ? .performance : memoryLimitMB < 6000 ? .balanced : memoryLimitMB < 8000 ? .quality : .ultra
+        if isA18OrNewer { return .ultra }
+        return GraphicsPreset.liteAvailable && memoryLimitMB < 2600 ? .lite : memoryLimitMB < 3400 ? .battery : memoryLimitMB < 4600 ? .performance : memoryLimitMB < 6000 ? .balanced : memoryLimitMB < 8000 ? .quality : .ultra
     }
     /// Every preset can be chosen; those above the recommended one show a warning.
     var allowed: [GraphicsPreset] { GraphicsPreset.available }
@@ -201,7 +206,8 @@ enum GraphicsConfiguration {
         // The engine and renderer read PG_LITE when they start, after this. The Lite build always sets it.
         if preset == .lite { setenv("PG_LITE", "1", 1) } else if !Theme.isLite { unsetenv("PG_LITE") }
         PGSetMemoryCap(Int32(settings.memoryCapMB))
-        PGSetSharperUpscaling(settings.sharperUpscaling ? 1 : 0)
+        let enableSharper = DeviceTier.probe().isA18OrNewer || settings.sharperUpscaling
+        PGSetSharperUpscaling(enableSharper ? 1 : 0)
         var pointers = options.map { strdup($0) }
         defer { pointers.forEach { free($0) } }
         pointers.withUnsafeMutableBufferPointer { buffer in
