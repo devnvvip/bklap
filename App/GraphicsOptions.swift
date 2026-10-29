@@ -32,20 +32,20 @@ enum GraphicsPreset: Int, CaseIterable {
     var engineOptions: [String] {
         switch self {
         case .lite, .battery, .performance:
-            return ["-shaderQuality=1", "-textureQuality=1", "-shadowQuality=-1", "-reflectionQuality=0", "-particleQuality=0",
-                    "-grassQuality=0", "-cityDensity=0.4", "-lodScale=1", "-pedLodBias=1.0", "-vehicleLodBias=1.0", "-pedVariety=0.4", "-vehicleVariety=0.4"]
+            return ["-shaderQuality=1", "-textureQuality=2", "-shadowQuality=-1", "-reflectionQuality=0", "-particleQuality=0",
+                    "-grassQuality=0", "-cityDensity=0.4", "-lodScale=1", "-pedLodBias=1.0", "-vehicleLodBias=1.0", "-pedVariety=0.2", "-vehicleVariety=0.2", "-fxaa=1", "-anisotropicQuality=16"]
         case .balanced:
-            return ["-shaderQuality=1", "-textureQuality=1", "-shadowQuality=0", "-reflectionQuality=0", "-particleQuality=0",
-                    "-grassQuality=0", "-cityDensity=0.4", "-lodScale=1", "-pedLodBias=1.0", "-vehicleLodBias=1.0", "-pedVariety=0.4", "-vehicleVariety=0.4"]
+            return ["-shaderQuality=1", "-textureQuality=2", "-shadowQuality=0", "-reflectionQuality=0", "-particleQuality=0",
+                    "-grassQuality=0", "-cityDensity=0.4", "-lodScale=1", "-pedLodBias=1.0", "-vehicleLodBias=1.0", "-pedVariety=0.2", "-vehicleVariety=0.2", "-fxaa=1", "-anisotropicQuality=16"]
         case .quality:
             return ["-shaderQuality=1", "-textureQuality=2", "-shadowQuality=0", "-reflectionQuality=1", "-particleQuality=1",
-                    "-grassQuality=1", "-cityDensity=0.4", "-lodScale=1", "-pedLodBias=1.0", "-vehicleLodBias=1.0", "-pedVariety=0.4", "-vehicleVariety=0.4"]
+                    "-grassQuality=1", "-cityDensity=0.4", "-lodScale=1", "-pedLodBias=1.0", "-vehicleLodBias=1.0", "-pedVariety=0.2", "-vehicleVariety=0.2", "-fxaa=1", "-anisotropicQuality=16"]
         case .ultra:
             return ["-shaderQuality=2", "-textureQuality=2", "-shadowQuality=1", "-reflectionQuality=2", "-particleQuality=1",
-                    "-grassQuality=1", "-cityDensity=0.6", "-lodScale=1", "-pedLodBias=1.0", "-vehicleLodBias=1.0", "-pedVariety=0.6", "-vehicleVariety=0.6"]
+                    "-grassQuality=1", "-cityDensity=0.6", "-lodScale=1", "-pedLodBias=1.0", "-vehicleLodBias=1.0", "-pedVariety=0.4", "-vehicleVariety=0.4", "-fxaa=1", "-anisotropicQuality=16"]
         case .max:
             return ["-shaderQuality=2", "-textureQuality=2", "-shadowQuality=2", "-reflectionQuality=2", "-particleQuality=2",
-                    "-grassQuality=2", "-cityDensity=1", "-lodScale=1", "-pedLodBias=1.0", "-vehicleLodBias=1.0", "-pedVariety=0.8", "-vehicleVariety=0.8"]
+                    "-grassQuality=2", "-cityDensity=1", "-lodScale=1", "-pedLodBias=1.0", "-vehicleLodBias=1.0", "-pedVariety=0.4", "-vehicleVariety=0.4", "-fxaa=1", "-anisotropicQuality=16"]
         }
     }
 }

@@ -478,7 +478,13 @@ static void makeSamplers(State *s) {
 	float minLod = std::max(0.0f, wordFloat(w[11])), maxLod = std::min(1000.0f, std::max(0.0f, wordFloat(w[12])));
 	d.lodMinClamp = minLod; d.lodMaxClamp = std::max(minLod, maxLod);
 	if (filter & 0x80) d.compareFunction = w[6] >= 1 && w[6] <= 8 ? (MTLCompareFunction)(w[6] - 1) : MTLCompareFunctionAlways;
-	if (aniso) { d.magFilter = d.minFilter = MTLSamplerMinMagFilterLinear; d.mipFilter = MTLSamplerMipFilterLinear; d.maxAnisotropy = std::max(1u, std::min(16u, w[5])); }
+	if (aniso) {
+		d.magFilter = d.minFilter = MTLSamplerMinMagFilterLinear;
+		d.mipFilter = MTLSamplerMipFilterLinear;
+		d.maxAnisotropy = 16;
+	} else if (d.magFilter == MTLSamplerMinMagFilterLinear && d.minFilter == MTLSamplerMinMagFilterLinear && !(filter & 0x80)) {
+		d.maxAnisotropy = 8;
+	}
 	s->sampler = [R->device newSamplerStateWithDescriptor:d];
 	d.magFilter = d.minFilter = MTLSamplerMinMagFilterNearest; d.maxAnisotropy = 1;
 	s->samplerNearest = [R->device newSamplerStateWithDescriptor:d];
@@ -1332,7 +1338,8 @@ static void applyDynamicState() {
 			const uint32_t *w = rs->words.data();
 			[R->pass setCullMode:w[1] == 2 ? MTLCullModeFront : w[1] == 3 ? MTLCullModeBack : MTLCullModeNone];
 			[R->pass setFrontFacingWinding:w[2] ? MTLWindingCounterClockwise : MTLWindingClockwise];
-			[R->pass setDepthBias:(float)(int32_t)w[3] slopeScale:wordFloat(w[5]) clamp:wordFloat(w[4])];
+			float db = (float)(int32_t)w[3] * (1.0f / 16777216.0f);
+			[R->pass setDepthBias:db slopeScale:wordFloat(w[5]) clamp:wordFloat(w[4])];
 			[R->pass setDepthClipMode:w[6] ? MTLDepthClipModeClip : MTLDepthClipModeClamp];
 			[R->pass setTriangleFillMode:w[0] == 2 ? MTLTriangleFillModeLines : MTLTriangleFillModeFill];
 		} else {
