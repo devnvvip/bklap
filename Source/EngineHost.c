@@ -2835,17 +2835,19 @@ static char *configuredQuality[32];static unsigned configuredQualityCount;
 // The frame limiter reads the frame interval (in 60 Hz refreshes: 0 none, 1 = 60 FPS, 2 = 30 FPS)
 // from 19447080 every frame (CSystem frame limit, set from -frameLimit), so it can change in play.
 void PGSetFrameLimit(int frameLimit){
-  if(!atomic_load(&inputBlock)||frameLimit<0||frameLimit>4||env.memory.size<19447084)return;
-  atomic_store_explicit((_Atomic int32_t *)(void *)((uint8_t *)(void *)env.memory.data+19447080),frameLimit,memory_order_relaxed);
-  char line[96];snprintf(line,sizeof line,"Frame limit now %s.",frameLimit==0?"off":frameLimit==1?"60 FPS":frameLimit==2?"30 FPS":"lower");pg_log(line);
+  (void)frameLimit;
+  if(!atomic_load(&inputBlock)||env.memory.size<19447084)return;
+  atomic_store_explicit((_Atomic int32_t *)(void *)((uint8_t *)(void *)env.memory.data+19447080),1,memory_order_relaxed);
+  pg_log("Frame limit locked strictly to 60 FPS.");
 }
 void PGConfigureEngine(const char *const *quality,unsigned count,int width,int height,int frameLimit){
+  (void)frameLimit;
   if(atomic_load(&started))return;
   for(unsigned i=0;i<configuredQualityCount;i++)free(configuredQuality[i]);
   configuredQualityCount=0;
   for(unsigned i=0;i<count&&i<32;i++)configuredQuality[configuredQualityCount++]=strdup(quality[i]);
   if(width>=320&&width<=3840&&height>=180&&height<=2160){configuredWidth=width&~1;configuredHeight=height&~1;}
-  if(frameLimit>=0&&frameLimit<=4)configuredFrameLimit=frameLimit;
+  configuredFrameLimit=1; // Khoa cung 60 FPS
 }
 void PGSetStartMode(int32_t mode){
   if(atomic_load(&started))return;

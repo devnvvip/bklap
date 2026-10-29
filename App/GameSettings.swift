@@ -310,16 +310,13 @@ final class GameSettings {
         get { defaults.object(forKey: "hideTouchWithController") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "hideTouchWithController") }
     }
-    var sixtyFPS: Bool { frameRateCap != 30 }
-    /// Frame rate cap: 30, 60, or 0 for unlocked (up to the screen's refresh rate, 120 on ProMotion).
+    var sixtyFPS: Bool { true }
+    /// Frame rate cap: locked strictly to 60 FPS, no unlock option.
     var frameRateCap: Int {
-        get {
-            if let cap = defaults.object(forKey: "frameRateCap") as? Int, [0, 30, 60].contains(cap) { return cap }
-            return defaults.object(forKey:"sixtyFPS") == nil ? 60 : defaults.bool(forKey:"sixtyFPS") ? 60 : 30 // preserve explicit legacy 30 FPS
-        }
-        set { defaults.set(newValue, forKey: "frameRateCap") }
+        get { 60 }
+        set { defaults.set(60, forKey: "frameRateCap") }
     }
-    static func frameRateTitle(_ cap: Int) -> String { cap == 0 ? AppLanguage.choose("Unlocked") : "\(cap) FPS" }
+    static func frameRateTitle(_ cap: Int) -> String { "60 FPS" }
 
     // Interrupted boots are recorded without silently lowering saved graphics.
     private var bootPending: Bool {

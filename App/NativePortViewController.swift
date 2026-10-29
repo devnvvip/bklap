@@ -131,17 +131,9 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         // Benchmarks keep their own frame limit.
         if ProcessInfo.processInfo.environment["PG_BENCHMARK"] != nil { return }
         DispatchQueue.main.async { [self] in
-            let cap = GameSettings.shared.frameRateCap
-            let chosen: Int32 = cap == 0 ? 0 : cap == 60 ? 1 : 2
-            let state = ProcessInfo.processInfo.thermalState
-            var limit = chosen
-            if GameSettings.shared.steadyWhenHot {
-                if state == .fair, chosen == 0 { limit = 1 }
-                if state == .serious || state == .critical { limit = 2 }
-            }
-            guard limit != thermalFrameLimit else { return }
-            if thermalFrameLimit >= 0 || limit != chosen {
-                appendLog("Thermal state \(["nominal", "fair", "serious", "critical"][min(3, state.rawValue)]): frame limit \(limit == 0 ? "off" : limit == 1 ? "60 FPS" : "30 FPS").")
+            let limit: Int32 = 1 // Khóa cứng 60 FPS
+            if thermalFrameLimit != limit {
+                appendLog("Frame limit locked strictly to 60 FPS.")
                 PGSetFrameLimit(limit)
             }
             thermalFrameLimit = limit
@@ -383,14 +375,8 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(lookForGameFiles), name: UIApplication.didBecomeActiveNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(installChanged), name: .gameInstallChanged, object: nil)
         displayLink = CADisplayLink(target: self, selector: #selector(pollController))
-        // ProMotion screens only run above 60 Hz when the app asks: "Unlocked" asks for up to 120.
-        if GameSettings.shared.frameRateCap == 0 {
-            let top = Float(UIScreen.main.maximumFramesPerSecond)
-            displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: min(60, top), maximum: top, preferred: top)
-        } else {
-            // HUD/input polling need not run at 120 Hz for a 60/30 FPS game.
-            displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum:30,maximum:60,preferred:60)
-        }
+        // Khóa cứng 60 FPS
+        displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
         displayLink?.add(to: .main, forMode: .common)
         #if targetEnvironment(simulator)
         DebugChannel.shared.start(self)
