@@ -91,7 +91,7 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
     private var lastDeviceLogAt: CFTimeInterval = 0
     private var lastFPSLabelUpdate: CFTimeInterval = 0
     /// The start screen; it hides once the game's world is up.
-    private lazy var home = HomeView(modes: GameMode.allCases.map { ($0.title, $0 == .story ? "book.fill" : "map.fill") }, log: output)
+    private lazy var home = HomeView(modes: GameMode.allCases.map { ($0.title, $0.icon) }, log: output)
     private var launchButton: UIButton { home.playButton }
     private var preloadLabel: UILabel { home.preloadLabel }
     private var controllerLabel: UILabel { home.controllerLabel }
@@ -263,8 +263,12 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         }
         home.onMode = { [weak self] index in
             guard let self, !self.engineStarted else { return }
-            GameSettings.shared.gameMode = GameMode.allCases[index]
+            let selected = GameMode.allCases[index]
+            GameSettings.shared.gameMode = selected
             self.refreshModeChoice()
+            if selected == .online {
+                self.promptForOnlineServer()
+            }
         }
         updateServerStatus()
         // Automation: --forget-game-folder starts with no game folder chosen (download and Continue tests, GTA-93).
@@ -669,7 +673,7 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         let mode = GameSettings.shared.gameMode
         bootedMode = mode
         let testMap = mode == .sandbox && GameSettings.shared.sandboxMap == 1
-        PGSetStartMode(testMap ? 3 : Int32(mode.rawValue))
+        PGSetStartMode(testMap ? 3 : (mode == .online ? 2 : Int32(mode.rawValue)))
         let minimap = GameSettings.shared.minimapLayout
         PGSetMinimapLayout(minimap.dx, minimap.dy, minimap.scale)
         PGSetSubtitleRaise(GameSettings.shared.subtitlesAboveHomeBar ? 0.05 : 0)
@@ -1082,7 +1086,35 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
     /// Play needs game files and a chosen mode.
     private func updatePlayEnabled() {
         let server = Self.isServerAddress(GameSettings.shared.assetServer)
-        launchButton.isEnabled = !engineStarted && !GameInstallManager.shared.isRunning && (GameFolder.isChosen || server) && GameSettings.shared.gameModeChoice != nil
+        let mode = GameSettings.shared.gameModeChoice
+        let filesReady = (mode == .online) ? server : (GameFolder.isChosen || server)
+        launchButton.isEnabled = !engineStarted && !GameInstallManager.shared.isRunning && filesReady && mode != nil
+    }
+    private func promptForOnlineServer() {
+        let alert = UIAlertController(
+            title: AppLanguage.choose("Chơi Online (VPS Server)"),
+            message: AppLanguage.choose("Nhập địa chỉ IP VPS hoặc IP:Port (Ví dụ: 103.12.34.56:8080 hoặc myvps.com):"),
+            preferredStyle: .alert
+        )
+        alert.addTextField { field in
+            field.placeholder = "IP:Port (VD: 1.2.3.4:8080)"
+            field.text = GameSettings.shared.assetServer
+            field.autocapitalizationType = .none
+            field.autocorrectionType = .no
+            field.keyboardType = .URL
+        }
+        alert.addAction(UIAlertAction(title: AppLanguage.choose("Kết nối"), style: .default) { [weak self] _ in
+            guard let self else { return }
+            let text = alert.textFields?.first?.text ?? ""
+            if !text.isEmpty {
+                GameSettings.shared.assetServer = text
+                self.testAssetServer()
+                self.updateServerStatus()
+                self.refreshModeChoice()
+            }
+        })
+        alert.addAction(UIAlertAction(title: AppLanguage.choose("Hủy"), style: .cancel))
+        present(alert, animated: true)
     }
     static func normalizeServerAddress(_ text: String) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)

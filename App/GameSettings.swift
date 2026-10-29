@@ -5,12 +5,27 @@ import Foundation
 enum GameMode: Int, CaseIterable {
     case story = 1
     case sandbox = 2
+    case online = 3
 
-    var title: String { self == .story ? AppLanguage.choose("Story mode") : AppLanguage.choose("Sandbox") }
+    var title: String {
+        switch self {
+        case .story: return AppLanguage.choose("Story mode")
+        case .sandbox: return AppLanguage.choose("Sandbox")
+        case .online: return AppLanguage.choose("Online (VPS)")
+        }
+    }
     var detail: String {
         switch self {
         case .story: return AppLanguage.choose("The campaign with missions. Continues your latest save, or starts from the Prologue.")
         case .sandbox: return AppLanguage.choose("Free roam anywhere on the map with every weapon. No missions.")
+        case .online: return AppLanguage.choose("Multiplayer online via VPS server IP/Port. Automatically bypasses version checks.")
+        }
+    }
+    var icon: String {
+        switch self {
+        case .story: return "book.fill"
+        case .sandbox: return "map.fill"
+        case .online: return "globe"
         }
     }
 }

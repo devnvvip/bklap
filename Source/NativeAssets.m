@@ -555,6 +555,9 @@ static NSData *fetchRangeImpl(NSString *path,uint64_t offset,uint64_t length,uin
   NSMutableURLRequest *request=[NSMutableURLRequest requestWithURL:url];
   [request setValue:[NSString stringWithFormat:@"bytes=%llu-%llu",offset,offset+length-1] forHTTPHeaderField:@"Range"];
   [request setValue:(assetVersion?:@"3095") forHTTPHeaderField:@"X-Game-Version"];
+  [request setValue:@"3095" forHTTPHeaderField:@"Game-Build"];
+  [request setValue:@"b3095" forHTTPHeaderField:@"X-Server-Version"];
+  [request setValue:@"b3095" forHTTPHeaderField:@"X-CitizenFX-Version"];
   [request setValue:@"GTA5-PC-1.0.3095.0" forHTTPHeaderField:@"User-Agent"];
   [request setValue:@"*/*" forHTTPHeaderField:@"Accept"];
   dispatch_semaphore_t done=dispatch_semaphore_create(0);
