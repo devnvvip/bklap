@@ -2834,8 +2834,10 @@ static char *configuredQuality[32];static unsigned configuredQualityCount;
 // from 19447080 every frame (CSystem frame limit, set from -frameLimit), so it can change in play.
 void PGSetFrameLimit(int frameLimit){
   if(!atomic_load(&inputBlock)||env.memory.size<19447084)return;
-  atomic_store_explicit((_Atomic int32_t *)(void *)((uint8_t *)(void *)env.memory.data+19447080),1,memory_order_relaxed);
-  pg_log("Frame limit: locked strictly to 60 FPS without 30 FPS drops.");
+  // 1: engine giữ đúng 60 FPS. 0: engine không tự hạn chế, nhịp 120 FPS do màn hình ProMotion khóa cứng.
+  const int32_t interval=frameLimit==0?0:1;
+  atomic_store_explicit((_Atomic int32_t *)(void *)((uint8_t *)(void *)env.memory.data+19447080),interval,memory_order_relaxed);
+  pg_log(interval?"Frame limit: locked strictly to 60 FPS without 30 FPS drops.":"Frame limit: engine limiter off, locked strictly to 120 FPS by the display.");
 }
 void PGConfigureEngine(const char *const *quality,unsigned count,int width,int height,int frameLimit){
   if(atomic_load(&started))return;
@@ -2843,7 +2845,7 @@ void PGConfigureEngine(const char *const *quality,unsigned count,int width,int h
   configuredQualityCount=0;
   for(unsigned i=0;i<count&&i<32;i++)configuredQuality[configuredQualityCount++]=strdup(quality[i]);
   if(width>=320&&width<=3840&&height>=180&&height<=2160){configuredWidth=width&~1;configuredHeight=height&~1;}
-  configuredFrameLimit = 1;
+  configuredFrameLimit = frameLimit==0?0:1;
 }
 void PGSetStartMode(int32_t mode){
   if(atomic_load(&started))return;
