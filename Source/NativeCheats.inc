@@ -214,7 +214,7 @@ static void pg_vehicle_god_mod_tick(w2c_game *instance) {
   pg_test_call(instance, 0xb282749d5e028163ull, 2, (uint64_t[]){ped, 0}); // SET_PED_CAN_BE_KNOCKED_OFF_BIKE: 0
   pg_test_call(instance, 0xb128377056a54e2aull, 2, (uint64_t[]){ped, 0}); // SET_PED_CAN_RAGDOLL: 0
 
-  // Chức năng chống lọt map: nếu độ cao z < -40.0f thì đưa xe lên mặt đường an toàn
+  // Chuc nang chong lot map: neu do cao z < -40.0f thi dua xe len mat duong an toan
   uint64_t vAddr = PG_FN_TURBO_ENTITY_ADDRESS(instance, vehicle);
   if (vAddr) {
     const float *pos = pg_pointer(&env, vAddr + 144, 12);
@@ -229,85 +229,116 @@ static void pg_vehicle_god_mod_tick(w2c_game *instance) {
     }
   }
 
-  // Xử lý va chạm: Đâm xe hay NPC thì mục tiêu bay ra xa rồi nổ tung!
+  // Chuc nang tu lat xe neu bi lat ngua noc xe xuong dat
+  int stuckOnRoof = (int)(pg_test_call(instance, 0xb497f06b288dcfdfull, 1, (uint64_t[]){vehicle}) & 1); // IS_VEHICLE_STUCK_ON_ROOF
+  if (stuckOnRoof) {
+    pg_test_call(instance, 0x49733e92263139d1ull, 1, (uint64_t[]){vehicle}); // SET_VEHICLE_ON_GROUND_PROPERLY
+  }
+
+  // Quan ly trang thai tren khong: chong nay / chong bay lai khi tiep dat
   static float lastSpeed = 0.0f;
   static double lastActionTime = 0.0;
+  static double lastAirTime = 0.0;
   double now = timeMS(CLOCK_MONOTONIC);
   float currentSpeed = PG_FN_GET_ENTITY_SPEED(instance, vehicle);
+
+  int inAir = (int)(pg_test_call(instance, 0x886e37ec497200b6ull, 1, (uint64_t[]){vehicle}) & 1); // IS_ENTITY_IN_AIR
+  if (inAir) {
+    lastAirTime = now;
+  }
+  bool recentlyLanded = (now - lastAirTime < 1500); // 1.5s sau khi tiep dat tuyet doi khong kich hoat bay lai
 
   int collided = (int)(pg_test_call(instance, 0x8bad02f0368d9e14ull, 1, (uint64_t[]){vehicle}) & 1); // HAS_ENTITY_COLLIDED_WITH_ANYTHING
   uint32_t hitVehTime = (uint32_t)pg_test_call(instance, 0x5d35ecf3a81a0ee0ull, 1, (uint64_t[]){player}); // GET_TIME_SINCE_PLAYER_HIT_VEHICLE
   uint32_t hitPedTime = (uint32_t)pg_test_call(instance, 0xe36a25322dc35f42ull, 1, (uint64_t[]){player}); // GET_TIME_SINCE_PLAYER_HIT_PED
-  bool hitRecently = (hitVehTime < 300) || (hitPedTime < 300);
+  bool hitRecently = (hitVehTime < 400) || (hitPedTime < 400);
   bool suddenDecel = (lastSpeed - currentSpeed) > 3.0f && lastSpeed > 4.0f;
 
-  if ((collided || hitRecently || suddenDecel) && (now - lastActionTime > 250)) {
-    if (vAddr) {
-      const float *pos = pg_pointer(&env, vAddr + 144, 12);
-      float vx = pos[0], vy = pos[1], vz = pos[2];
-      float heading = PG_FN_GET_ENTITY_HEADING(instance, vehicle);
-      float rad = heading * 0.0174532925f; // Chuyển đổi sang radian
-      float frontX = vx - sinf(rad) * 3.5f;
-      float frontY = vy + cosf(rad) * 3.5f;
+  if (vAddr) {
+    const float *pos = pg_pointer(&env, vAddr + 144, 12);
+    float vx = pos[0], vy = pos[1], vz = pos[2];
+    float heading = PG_FN_GET_ENTITY_HEADING(instance, vehicle);
+    float rad = heading * 0.0174532925f;
+    float dirX = -sinf(rad);
+    float dirY = cosf(rad);
+    float frontX = vx + dirX * 3.5f;
+    float frontY = vy + dirY * 3.5f;
+    float aheadX = vx + dirX * 6.5f;
+    float aheadY = vy + dirY * 6.5f;
 
-      bool hitTarget = false;
+    bool hitTarget = false;
 
-      // 1. Thử lấy thực thể va chạm gần nhất
-      u32 hitEntity = (u32)pg_test_call(instance, 0xa75ee4f689b85391ull, 1, (uint64_t[]){vehicle}); // _GET_LAST_ENTITY_HIT_BY_ENTITY
+    // 1. TIM XE KHAC DE HAT VANG VA NO TUNG (DAM XE KHAC)
+    u32 otherVehicle = 0;
+    u32 candVeh = (u32)pg_test_call(instance, 0xf73eb622c4f1689bull, 6,
+      (uint64_t[]){pg_f32_arg(aheadX), pg_f32_arg(aheadY), pg_f32_arg(vz), pg_f32_arg(6.0f), 0, 70});
+    if (candVeh && candVeh != vehicle) {
+      otherVehicle = candVeh;
+    } else {
+      candVeh = (u32)pg_test_call(instance, 0xf73eb622c4f1689bull, 6,
+        (uint64_t[]){pg_f32_arg(frontX), pg_f32_arg(frontY), pg_f32_arg(vz), pg_f32_arg(4.5f), 0, 70});
+      if (candVeh && candVeh != vehicle) {
+        otherVehicle = candVeh;
+      }
+    }
 
-      // 2. Tìm xe khác ở vị trí va chạm và mũi xe
-      u32 otherVehicle = 0;
-      if (hitEntity && (int)(pg_test_call(instance, 0x6ac7003fa6e5575eull, 1, (uint64_t[]){hitEntity}) & 1) && hitEntity != vehicle) {
-        otherVehicle = hitEntity;
-      } else {
-        otherVehicle = (u32)pg_test_call(instance, 0xf73eb622c4f1689bull, 6,
-          (uint64_t[]){pg_f32_arg(frontX), pg_f32_arg(frontY), pg_f32_arg(vz), pg_f32_arg(6.0f), 0, 0});
-        if (!otherVehicle || otherVehicle == vehicle) {
-          otherVehicle = (u32)pg_test_call(instance, 0xf73eb622c4f1689bull, 6,
-            (uint64_t[]){pg_f32_arg(vx), pg_f32_arg(vy), pg_f32_arg(vz), pg_f32_arg(5.0f), 0, 0});
+    if (otherVehicle && otherVehicle != vehicle && (collided || hitRecently || suddenDecel || (now - lastActionTime > 300))) {
+      hitTarget = true;
+      lastActionTime = now;
+      // Xe nguoi choi khong bay, chi xe NPC bi dam bay vot len troi roi no tung
+      float flingX = dirX * 38.0f;
+      float flingY = dirY * 38.0f;
+      pg_test_call(instance, 0x1c99bb7b6e96d16full, 4,
+        (uint64_t[]){otherVehicle, pg_f32_arg(flingX), pg_f32_arg(flingY), pg_f32_arg(22.0f)}); // SET_ENTITY_VELOCITY
+      pg_test_call(instance, 0xba71116adf5b514cull, 3, (uint64_t[]){otherVehicle, 1, 0}); // EXPLODE_VEHICLE
+      pg_test_call(instance, 0xe3ad2bdbaee269acull, 8,
+        (uint64_t[]){pg_f32_arg(aheadX), pg_f32_arg(aheadY), pg_f32_arg(vz), 2, pg_f32_arg(3.0f), 1, 0, pg_f32_arg(1.0f)}); // ADD_EXPLOSION
+    }
+
+    // 2. TIM NPC DE HAT VANG VA NO TUNG (DAM NPC)
+    static uint64_t gPedOutBuf = 0;
+    if (!gPedOutBuf) gPedOutBuf = PG_FN_OPERATOR_NEW(instance, 64);
+    u32 nearbyPed = 0;
+    if (gPedOutBuf) {
+      *(uint32_t *)pg_pointer(&env, gPedOutBuf, 4) = 0;
+      int found = (int)(pg_test_call(instance, 0xc33ab876a77f8164ull, 10,
+        (uint64_t[]){pg_f32_arg(frontX), pg_f32_arg(frontY), pg_f32_arg(vz), pg_f32_arg(5.5f), 1, 1, gPedOutBuf, 0, 0, (uint32_t)-1}) & 1);
+      if (found) {
+        nearbyPed = *(uint32_t *)pg_pointer(&env, gPedOutBuf, 4);
+      }
+      if (!nearbyPed || nearbyPed == ped) {
+        *(uint32_t *)pg_pointer(&env, gPedOutBuf, 4) = 0;
+        found = (int)(pg_test_call(instance, 0xc33ab876a77f8164ull, 10,
+          (uint64_t[]){pg_f32_arg(aheadX), pg_f32_arg(aheadY), pg_f32_arg(vz), pg_f32_arg(6.0f), 1, 1, gPedOutBuf, 0, 0, (uint32_t)-1}) & 1);
+        if (found) {
+          nearbyPed = *(uint32_t *)pg_pointer(&env, gPedOutBuf, 4);
         }
       }
+    }
 
-      if (otherVehicle && otherVehicle != vehicle) {
-        lastActionTime = now;
-        hitTarget = true;
-        // Hất xe NPC bay vọt ra xa lên trời
-        float flingDirX = -sinf(rad) * 38.0f;
-        float flingDirY = cosf(rad) * 38.0f;
-        pg_test_call(instance, 0x1c99bb7b6e96d16full, 4,
-          (uint64_t[]){otherVehicle, pg_f32_arg(flingDirX), pg_f32_arg(flingDirY), pg_f32_arg(22.0f)}); // SET_ENTITY_VELOCITY
-        // Nổ tung xe NPC
-        pg_test_call(instance, 0xba71116adf5b514cull, 3, (uint64_t[]){otherVehicle, 1, 0}); // EXPLODE_VEHICLE
-        pg_test_call(instance, 0xe3ad2bdbaee269acull, 8,
-          (uint64_t[]){pg_f32_arg(frontX), pg_f32_arg(frontY), pg_f32_arg(vz), 2, pg_f32_arg(2.0f), 1, 0, pg_f32_arg(1.0f)}); // ADD_EXPLOSION
-      }
+    if (nearbyPed && nearbyPed != ped && (collided || hitRecently || suddenDecel || (now - lastActionTime > 300))) {
+      hitTarget = true;
+      lastActionTime = now;
+      float flingX = dirX * 32.0f;
+      float flingY = dirY * 32.0f;
+      pg_test_call(instance, 0x1c99bb7b6e96d16full, 4,
+        (uint64_t[]){nearbyPed, pg_f32_arg(flingX), pg_f32_arg(flingY), pg_f32_arg(16.0f)}); // SET_ENTITY_VELOCITY
+      pg_test_call(instance, 0xb128377056a54e2aull, 2, (uint64_t[]){nearbyPed, 1}); // SET_PED_CAN_RAGDOLL: 1
+      pg_test_call(instance, 0xae99fb955586417aull, 8, (uint64_t[]){nearbyPed, 5000, 5000, 0, 1, 1, 0}); // SET_PED_TO_RAGDOLL
+      pg_test_call(instance, 0xe3ad2bdbaee269acull, 8,
+        (uint64_t[]){pg_f32_arg(frontX), pg_f32_arg(frontY), pg_f32_arg(vz), 2, pg_f32_arg(2.5f), 1, 0, pg_f32_arg(1.0f)}); // ADD_EXPLOSION
+    }
 
-      // 3. Tìm NPC ở gần vị trí mũi xe
-      u32 nearbyPed = 0;
-      if (hitEntity && (int)(pg_test_call(instance, 0x524ac5ecea15343eull, 1, (uint64_t[]){hitEntity}) & 1) && hitEntity != ped) {
-        nearbyPed = hitEntity;
-      } else {
-        nearbyPed = (u32)pg_test_call(instance, 0xc33ab876a77f8164ull, 10,
-          (uint64_t[]){pg_f32_arg(frontX), pg_f32_arg(frontY), pg_f32_arg(vz), pg_f32_arg(4.5f), 1, 1, 0, 0, 0, (uint32_t)-1});
-      }
-
-      if (nearbyPed && nearbyPed != ped) {
-        lastActionTime = now;
-        hitTarget = true;
-        float flingDirX = -sinf(rad) * 32.0f;
-        float flingDirY = cosf(rad) * 32.0f;
-        pg_test_call(instance, 0x1c99bb7b6e96d16full, 4,
-          (uint64_t[]){nearbyPed, pg_f32_arg(flingDirX), pg_f32_arg(flingDirY), pg_f32_arg(18.0f)}); // Hất NPC bay vọt ra xa
-        pg_test_call(instance, 0xe3ad2bdbaee269acull, 8,
-          (uint64_t[]){pg_f32_arg(frontX), pg_f32_arg(frontY), pg_f32_arg(vz), 2, pg_f32_arg(2.0f), 1, 0, pg_f32_arg(1.0f)}); // Nổ tung
-      }
-
-      // 4. Nếu đâm vào tường / tòa nhà cố định với tốc độ cao (không trúng xe hay NPC) -> hất xe ta bay thẳng lên trời!
-      if (!hitTarget && (collided || suddenDecel) && (lastSpeed >= 5.0f || currentSpeed >= 5.0f)) {
-        lastActionTime = now;
-        pg_test_call(instance, 0x1c99bb7b6e96d16full, 4,
-          (uint64_t[]){vehicle, 0, 0, pg_f32_arg(48.0f)}); // SET_ENTITY_VELOCITY vz = 48m/s
-      }
+    // 3. CHI DAM VAO CAY HOAC TOA NHA CO DINH MOI BAY LEN TROI (KHONG TRUNG XE/NPC)
+    // Roi xuong tiep dat KHONG BAO GIO BAY TIEP, van chay binh thuong
+    if (!hitTarget && !inAir && !recentlyLanded && (collided && suddenDecel) && lastSpeed >= 7.0f && (now - lastActionTime > 500)) {
+      lastActionTime = now;
+      lastAirTime = now;
+      // Bay len vua phai (vz = 16.0f, cao khoang 12-14m, khong bay qua cao) kem xung luc luot toi
+      float jumpX = dirX * 10.0f;
+      float jumpY = dirY * 10.0f;
+      pg_test_call(instance, 0x1c99bb7b6e96d16full, 4,
+        (uint64_t[]){vehicle, pg_f32_arg(jumpX), pg_f32_arg(jumpY), pg_f32_arg(16.0f)}); // SET_ENTITY_VELOCITY vz = 16m/s
     }
   }
   lastSpeed = currentSpeed;
