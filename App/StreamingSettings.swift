@@ -18,14 +18,20 @@ enum StreamingSettings {
     static var selectedReserveMB: Int { reserveProfileMB<0 ? automaticReserveMB(physicalBytes:ProcessInfo.processInfo.physicalMemory) : reserveProfileMB }
     static let reclaimDistances=[40,60,80,120,160]
     static var reclaimDistance: Int {
-        get { 160 }
-        set { UserDefaults.standard.set(160, forKey: "distanceReclaimMeters") }
+        get {let value=UserDefaults.standard.object(forKey:"distanceReclaimMeters") as? Int ?? 80;return reclaimDistances.contains(value) ? value : 80}
+        set {UserDefaults.standard.set(reclaimDistances.contains(newValue) ? newValue : 80,forKey:"distanceReclaimMeters")}
     }
     static let distanceValues = ["0", "0.2", "0.4", "0.6", "0.8", "1"]
     static let textureValues = [384, 512, 640, 768, 1024, 1280]
     static var distanceScale: String? {
-        get { "1" } // Load toan bo map day du o tam xa
-        set { UserDefaults.standard.set("1", forKey: "RegenerationExtendedDistance") }
+        get {
+            guard let value = UserDefaults.standard.string(forKey: "RegenerationExtendedDistance"),
+                  distanceValues.contains(value) else { return nil }
+            return value
+        }
+        set {
+            UserDefaults.standard.set(newValue.flatMap { distanceValues.contains($0) ? $0 : nil }, forKey: "RegenerationExtendedDistance")
+        }
     }
     static var textureBudgetMB: Int {
         get {
@@ -38,11 +44,7 @@ enum StreamingSettings {
         setenv("PG_DISTANCE_STREAMING", distanceStreaming ? "1" : "0", 1)
         setenv("PG_DISTANCE_RESERVE_MB", String(selectedReserveMB), 1)
         setenv("PG_DISTANCE_METERS", String(reclaimDistance), 1)
-        if textureBudgetMB == 0 {
-            let defaultMB = ProcessInfo.processInfo.physicalMemory >= 7 * 1024 * 1024 * 1024 ? "1280" : "768"
-            setenv("PG_VIDEO_MEMORY_MB", defaultMB, 1)
-        } else {
-            setenv("PG_VIDEO_MEMORY_MB", String(textureBudgetMB), 1)
-        }
+        if textureBudgetMB == 0 { unsetenv("PG_VIDEO_MEMORY_MB") }
+        else { setenv("PG_VIDEO_MEMORY_MB", String(textureBudgetMB), 1) }
     }
 }
