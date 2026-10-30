@@ -31,8 +31,20 @@ if not (source / 'CMakeLists.txt').exists():
     archive = root / f'Tools/opus-{VERSION}.tar.gz'
     archive.parent.mkdir(parents=True, exist_ok=True)
     if not archive.exists() or hashlib.sha256(archive.read_bytes()).hexdigest() != SHA256:
-        with urllib.request.urlopen(URL) as response:
-            archive.write_bytes(response.read())
+        success = False
+        for attempt in range(5):
+            try:
+                req = urllib.request.Request(URL, headers={'User-Agent': 'curl/8.7.1'})
+                with urllib.request.urlopen(req, timeout=30) as response:
+                    archive.write_bytes(response.read())
+                if hashlib.sha256(archive.read_bytes()).hexdigest() == SHA256:
+                    success = True
+                    break
+            except Exception as e:
+                print(f'libopus download attempt {attempt+1} failed ({e}); retrying...', flush=True)
+                import time; time.sleep(2)
+        if not success:
+            subprocess.run(['curl', '-fSL', '--retry', '5', URL, '-o', str(archive)], check=True)
     if hashlib.sha256(archive.read_bytes()).hexdigest() != SHA256:
         sys.exit('libopus archive checksum mismatch.')
     sys.path.insert(0, str(Path(__file__).parent))
