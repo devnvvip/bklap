@@ -197,14 +197,10 @@ static void pg_clear_all_screen_blur(w2c_game *instance) {
   if (pg_test_call(instance, 0x7b226c785a52a0a9ull, 0, NULL) & 1) { // IS_SCREENBLUR_FADE_RUNNING
     pg_test_call(instance, 0xde81239437e8c5a8ull, 0, NULL); // DISABLE_SCREENBLUR_FADE
     pg_test_call(instance, 0xefacc8aef94430d5ull, 1, (uint64_t[]){pg_f32_arg(0.0f)}); // TRIGGER_SCREENBLUR_FADE_OUT(0.0f)
+    pg_test_call(instance, 0xb4eddc19532bfb85ull, 0, NULL); // ANIMPOSTFX_STOP_ALL
   }
-  pg_test_call(instance, 0xb4eddc19532bfb85ull, 0, NULL); // ANIMPOSTFX_STOP_ALL
   pg_test_call(instance, 0x487a82c650eb7799ull, 1, (uint64_t[]){pg_f32_arg(0.0f)}); // SET_GAMEPLAY_CAM_MOTION_BLUR_SCALING_THIS_UPDATE(0.0f)
   pg_test_call(instance, 0x0225778816fdc28cull, 1, (uint64_t[]){pg_f32_arg(0.0f)}); // SET_GAMEPLAY_CAM_MAX_MOTION_BLUR_STRENGTH_THIS_UPDATE(0.0f)
-  pg_test_call(instance, 0x0a986918b102b448ull, 2, (uint64_t[]){ped, 0}); // SET_PED_MOTION_BLUR(ped, FALSE)
-  pg_test_call(instance, 0x295d82a8559f9150ull, 2, (uint64_t[]){ped, 0}); // SET_ENTITY_MOTION_BLUR(ped, FALSE)
-  u32 vehicle = PG_FN_PED_VEHICLE(instance, ped, 0);
-  if (vehicle) pg_test_call(instance, 0x295d82a8559f9150ull, 2, (uint64_t[]){vehicle, 0}); // SET_ENTITY_MOTION_BLUR(vehicle, FALSE)
   pg_asi_leave_script(instance, previous);
 }
 
@@ -302,10 +298,13 @@ static void pg_vehicle_god_mod_tick(w2c_game *instance) {
     }
   }
 
-  // Chức năng tự lật xe nếu bị lật ngửa nóc xe xuống đất
-  int stuckOnRoof = (int)(pg_test_call(instance, 0xb497f06b288dcfdfull, 1, (uint64_t[]){vehicle}) & 1); // IS_VEHICLE_STUCK_ON_ROOF
-  if (stuckOnRoof) {
-    pg_test_call(instance, 0x49733e92263139d1ull, 1, (uint64_t[]){vehicle}); // SET_VEHICLE_ON_GROUND_PROPERLY
+  // Chức năng tự lật xe nếu bị lật ngửa nóc xe xuống đất (chạy mỗi 30 frame để tiết kiệm CPU)
+  static unsigned roofFrames = 0;
+  if (++roofFrames % 30 == 0) {
+    int stuckOnRoof = (int)(pg_test_call(instance, 0xb497f06b288dcfdfull, 1, (uint64_t[]){vehicle}) & 1); // IS_VEHICLE_STUCK_ON_ROOF
+    if (stuckOnRoof) {
+      pg_test_call(instance, 0x49733e92263139d1ull, 1, (uint64_t[]){vehicle}); // SET_VEHICLE_ON_GROUND_PROPERLY
+    }
   }
 
   pg_asi_leave_script(instance, previous);

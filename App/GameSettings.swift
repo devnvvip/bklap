@@ -389,7 +389,7 @@ final class GameSettings {
         }
         set { defaults.set(newValue, forKey: "frameRateCap"); PGSetFramePacing(Int32(frameRateCap)) }
     }
-    static func frameRateTitle(_ cap: Int) -> String { cap == 120 ? "Khóa cứng 120 FPS" : "Khóa cứng 60 FPS" }
+    static func frameRateTitle(_ cap: Int) -> String { cap == 120 ? "Khóa cứng 120 FPS" : "Khóa cứng 80 FPS (60 + 20)" }
 
     // Interrupted boots are recorded without silently lowering saved graphics.
     private var bootPending: Bool {

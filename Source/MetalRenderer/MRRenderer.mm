@@ -308,7 +308,7 @@ static id<MTLBlitCommandEncoder> blitEncoder() {
 	R->blit = [commandBuffer() blitCommandEncoder];
 	return R->blit;
 }
-static std::atomic<int> gPacingFPS{60};
+static std::atomic<int> gPacingFPS{80};
 static void storeResult(uint64_t addr, uint64_t value, uint32_t seq);
 enum CommitReason { CPresent, CFence, CReadback, CIdle, CReasons };
 static const char *kCommitNames[CReasons] = {"present", "fence", "readback", "idle queries"};
@@ -2042,7 +2042,11 @@ extern "C" void PGMetalRendererSetMSR(int enabled, float sharpness, float bloom,
 	gMSROn.store(enabled != 0);
 }
 // Frame pacing: 60 or 120 frames per second (the player's strict lock), changes live (the variable is declared above commit()).
-extern "C" void PGMetalRendererSetFramePacing(int fps) { gPacingFPS.store(fps >= 100 ? 120 : 60); }
+// Frame pacing: khoa cung unlock sieu nghiem ngat fps + 20 (60 -> 80 FPS, 120 -> 120 FPS)
+extern "C" void PGMetalRendererSetFramePacing(int fps) {
+	if (fps >= 100) gPacingFPS.store(120);
+	else gPacingFPS.store((fps > 0 ? fps : 60) + 20);
+}
 #if PG_METALFX
 static struct { id<MTLFXSpatialScaler> scaler; id<MTLTexture> out; uint32_t inW, inH, outW, outH; MTLPixelFormat format; bool unsupported; } FX;
 static id<MTLTexture> upscaled(Texture *t) {
