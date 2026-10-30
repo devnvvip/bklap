@@ -48,11 +48,13 @@ final class SettingsHomeViewController: UITableViewController {
         }, sections: [.language, .mode]))
         if !engineRunning {
             list.append(Category(icon: "viewfinder", title: "Tầm nhìn và texture (4 GB)", summary: { "Extended Distance Scaling · Extended Texture Budget" }, sections: [], page: { StreamingSettingsViewController() }))
-            list.append(Category(icon: "sparkles", title: "Đồ hoạ Project RELOAD", summary: { BundledReload.enabled ? "Đang bật · áp dụng khi vào game" : "Đang tắt · bật để dùng đồ hoạ mod" }, sections: [], page: { BundledReloadViewController() }))
             list.append(Category(icon: "folder", title: AppLanguage.choose("Game files"), summary: {
                 AppLanguage.choose("Where the game is, checking and downloading its files")
             }, sections: [.files]))
         }
+        list.append(Category(icon: "sparkles", title: "MSR · Đồ hoạ Project RELOAD", summary: {
+            (settings.msrEnabled ? "MSR bật · \(settings.msrInternalHeight)p lên màn hình" : "MSR tắt") + " · " + (BundledReload.enabled ? "RELOAD bật" : "RELOAD tắt")
+        }, sections: [], page: { BundledReloadViewController(engineRunning: running) }))
         list.append(Category(icon: "shippingbox", title: AppLanguage.choose("Mods"), summary: {
             let count = ModInstaller.installed().filter(\.enabled).count
             return count == 0 ? AppLanguage.choose("Install car, skin and script mods") : AppLanguage.interpolate(AppLanguage.choose("{arg0} mods on"), [String(count)])
