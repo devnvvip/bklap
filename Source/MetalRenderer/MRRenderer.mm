@@ -21,6 +21,7 @@
 #define PG_METALFX 1
 #endif
 #include <TargetConditionals.h>
+#include <mach/mach_time.h>
 #include <pthread.h>
 #include <mutex>
 #include <functional>
@@ -241,7 +242,7 @@ struct Renderer {
 	id<MTLBuffer> zeroBuffer;
 	std::unordered_map<uint32_t, id<MTLTexture>> dummyTextures;
 	id<MTLSamplerState> dummySampler, dummyCompare;
-	id<MTLRenderPipelineState> blitPipe, capturePipe;
+	id<MTLRenderPipelineState> blitPipe, capturePipe, msrPipe;
 	id<MTLDepthStencilState> noDepth;
 
 	// game shader objects by program (the first object created for each), for program substitutions
@@ -2028,10 +2029,23 @@ static void capture(Texture *t, const std::string &name, id<MTLRenderPipelineSta
 // brings it to the screen's own resolution (up to 3 times the render size) with edge-aware sharpening.
 static std::atomic<bool> gUpscale{false};
 extern "C" void PGMetalRendererSetUpscaling(int on) { gUpscale.store(on != 0); }
+// MSR: MetalFX scaling to the screen's size (whatever Sharper upscaling says) and the finishing pass (kMSRShader).
+static std::atomic<bool> gMSROn{false};
+static std::atomic<float> gMSRSharp{0.6f}, gMSRBloom{0.35f};
+static std::atomic<int> gMSRLook{2};
+extern "C" void PGMetalRendererSetMSR(int enabled, float sharpness, float bloom, int look) {
+	gMSRSharp.store(std::min(std::max(std::isfinite(sharpness) ? sharpness : 0.6f, 0.0f), 1.0f));
+	gMSRBloom.store(std::min(std::max(std::isfinite(bloom) ? bloom : 0.35f, 0.0f), 1.0f));
+	gMSRLook.store(std::min(std::max(look, 0), 3));
+	gMSROn.store(enabled != 0);
+}
+// Frame pacing: 60 or 120 frames per second (the player's strict lock), changes live.
+static std::atomic<int> gPacingFPS{60};
+extern "C" void PGMetalRendererSetFramePacing(int fps) { gPacingFPS.store(fps >= 100 ? 120 : 60); }
 #if PG_METALFX
 static struct { id<MTLFXSpatialScaler> scaler; id<MTLTexture> out; uint32_t inW, inH, outW, outH; MTLPixelFormat format; bool unsupported; } FX;
 static id<MTLTexture> upscaled(Texture *t) {
-	if (!gUpscale.load() || FX.unsupported || !R->layer) return nil;
+	if (!(gUpscale.load() || gMSROn.load()) || FX.unsupported || !R->layer) return nil;
 	if (![MTLFXSpatialScalerDescriptor supportsDevice:R->device]) { FX.unsupported = true; pg_log("Sharper upscaling: MetalFX isn't available on this device."); return nil; }
 	CGSize screen = R->layer.bounds.size; CGFloat scale = R->layer.contentsScale;
 	uint32_t outW = (uint32_t)std::min<double>(screen.width * scale, t->width * 3.0), outH = (uint32_t)std::min<double>(screen.height * scale, t->height * 3.0);
@@ -2063,6 +2077,16 @@ static id<MTLTexture> upscaled(Texture *) {
 }
 #endif
 
+// Sleeps until `target` (CACurrentMediaTime seconds) without burning a core: the thread sleeps in the kernel and only
+// the last quarter millisecond is spent looping, so the frame still lands on its beat.
+static void pacingSleepUntil(double target) {
+	static mach_timebase_info_data_t timebase;
+	if (!timebase.denom) mach_timebase_info(&timebase);
+	double remaining = (target - 0.00025) - CACurrentMediaTime();
+	if (remaining > 0) mach_wait_until(mach_absolute_time() + (uint64_t)(remaining * 1e9 * timebase.denom / timebase.numer));
+	while (CACurrentMediaTime() < target) { }
+}
+
 static void present(uint32_t texId) {
 	flushBlockUploads();
 	flushClears();
@@ -2074,14 +2098,29 @@ static void present(uint32_t texId) {
 		{ std::lock_guard<std::mutex> g(R->captureLock); name.swap(R->captureName); }
 		if (!name.empty()) capture(t, name);
 		id<MTLTexture> picture = upscaled(t) ?: t->tex;
+		const bool msr = gMSROn.load() && R->msrPipe;
 		CGSize size = CGSizeMake(picture.width, picture.height);
+		if (msr && picture == t->tex) {		// no MetalFX: the MSR pass scales to the screen itself
+			CGSize screen = R->layer.bounds.size; CGFloat scale = R->layer.contentsScale;
+			double w = screen.width * scale, h = screen.height * scale;
+			if (w >= picture.width && h >= picture.height && w <= picture.width * 3.0 && h <= picture.height * 3.0) size = CGSizeMake(std::floor(w), std::floor(h));
+		}
 		if (!CGSizeEqualToSize(R->layer.drawableSize, size)) R->layer.drawableSize = size;
 		drawable = [R->layer nextDrawable];
 		if (drawable) {
 			MTLRenderPassDescriptor *rp = [MTLRenderPassDescriptor renderPassDescriptor];
 			rp.colorAttachments[0].texture = drawable.texture; rp.colorAttachments[0].loadAction = MTLLoadActionDontCare; rp.colorAttachments[0].storeAction = MTLStoreActionStore;
 			id<MTLRenderCommandEncoder> e = [commandBuffer() renderCommandEncoderWithDescriptor:rp];
-			[e setRenderPipelineState:R->blitPipe]; [e setFragmentTexture:picture atIndex:0];
+			if (msr) {
+				// vibrance, contrast, warmth, vignette for look 0 original, 1 natural, 2 cinematic, 3 vivid
+				static const float looks[4][4] = {{0.00f, 0.00f, 0.00f, 0.00f}, {0.18f, 0.06f, 0.010f, 0.10f}, {0.12f, 0.16f, 0.025f, 0.22f}, {0.42f, 0.10f, 0.000f, 0.08f}};
+				const float *look = looks[gMSRLook.load()];
+				struct { float sharp, bloom, vibrance, contrast, warm, vignette, invW, invH; } params = {
+					gMSRSharp.load(), gMSRBloom.load(), look[0], look[1], look[2], look[3], 1.0f / (float)drawable.texture.width, 1.0f / (float)drawable.texture.height };
+				[e setRenderPipelineState:R->msrPipe]; [e setFragmentTexture:picture atIndex:0]; [e setFragmentBytes:&params length:sizeof params atIndex:0];
+			} else {
+				[e setRenderPipelineState:R->blitPipe]; [e setFragmentTexture:picture atIndex:0];
+			}
 			[e drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
 			[e endEncoding];
 			t->lastUse = R->serial;
@@ -2111,20 +2150,18 @@ static void present(uint32_t texId) {
 	f.lastSerial = R->serial - 1;
 	R->presents++;
 	double now = CACurrentMediaTime();
-	// Khóa cứng nghiêm ngặt 60.0 FPS mượt mà tuyệt đối (16.666 ms / frame)
-	static double sPacingTarget = 0.0;
-	const double targetFrameTime = 1.0 / 60.0;
+	// Khóa cứng khung hình đúng 60 hoặc đúng 120 FPS theo cài đặt (16.667 ms hoặc 8.333 ms / khung). Ngủ trong kernel,
+	// không quay vòng chờ cả khung như trước (đốt một nhân CPU liên tục, nóng máy và làm đói luồng âm thanh).
+	static double sPacingTarget = 0.0; static int sPacingFPS = 0;
+	const int pacingFPS = gPacingFPS.load();
+	const double targetFrameTime = 1.0 / pacingFPS;
+	if (sPacingFPS != pacingFPS) { sPacingFPS = pacingFPS; sPacingTarget = 0.0; }
 	if (sPacingTarget <= 0.0) {
 		sPacingTarget = now;
 	} else {
 		sPacingTarget += targetFrameTime;
 		if (now > sPacingTarget + targetFrameTime * 2.0) sPacingTarget = now;
-		while (CACurrentMediaTime() < sPacingTarget - 0.0006) {
-			usleep(300);
-		}
-		while (CACurrentMediaTime() < sPacingTarget) {
-			// microsecond precision spin-wait
-		}
+		else pacingSleepUntil(sPacingTarget);
 	}
 	now = CACurrentMediaTime();
 	if (R->statPresentAt) { double gap = (now - R->statPresentAt) * 1000; if (gap > 50) R->longFrames++; if (gap > R->worstFrameMs) R->worstFrameMs = gap; }
@@ -2493,6 +2530,56 @@ struct D { float depth [[depth(any)]]; };
 fragment D pg_depth_copy(V in [[stage_in]], texture2d<float> t [[texture(0)]]) { D d; d.depth = t.read(uint2(in.p.xy)).x; return d; }
 )";
 
+// MSR (Mugoat Super Resolution), the last pass before the screen: contrast-adaptive sharpening (the picture MetalFX
+// scaled up stays crisp without halos), a soft glow on bright areas, vibrance, contrast and warmth, a light vignette
+// and a hair of noise against banding in the sky. The same look the PC Project RELOAD mod gets from ReShade/ENB,
+// in one cheap pass. Compiled on its own: if it fails the picture goes to the screen unchanged.
+static const char *kMSRShader = R"(
+#include <metal_stdlib>
+using namespace metal;
+struct MV { float4 p [[position]]; };
+struct MSRParams { float sharp; float bloom; float vibrance; float contrast; float warm; float vignette; float invW; float invH; };
+vertex MV pg_msr_vertex(uint i [[vertex_id]]) { float2 q[3] = {float2(-1, -1), float2(3, -1), float2(-1, 3)}; MV v; v.p = float4(q[i], 0, 1); return v; }
+fragment float4 pg_msr(MV in [[stage_in]], texture2d<float> t [[texture(0)]], constant MSRParams &u [[buffer(0)]]) {
+	constexpr sampler s(filter::linear, address::clamp_to_edge, coord::normalized);
+	float2 uv = (in.p.xy + 0.5) * float2(u.invW, u.invH);
+	float2 px = float2(1.0 / float(t.get_width()), 1.0 / float(t.get_height()));
+	float3 c = t.sample(s, uv).rgb;
+	if (u.sharp > 0.001) {
+		float3 n = t.sample(s, uv + float2(0.0, -px.y)).rgb;
+		float3 so = t.sample(s, uv + float2(0.0, px.y)).rgb;
+		float3 w = t.sample(s, uv + float2(-px.x, 0.0)).rgb;
+		float3 e = t.sample(s, uv + float2(px.x, 0.0)).rgb;
+		float3 mn = min(min(min(n, so), min(w, e)), c);
+		float3 mx = max(max(max(n, so), max(w, e)), c);
+		float3 amp = sqrt(saturate(min(mn, 1.0 - mx) / max(mx, 0.001)));
+		float3 k = amp * (-1.0 / mix(8.0, 4.5, saturate(u.sharp)));
+		c = saturate((c + (n + so + w + e) * k) / (1.0 + 4.0 * k));
+	}
+	if (u.bloom > 0.001) {
+		float scale = max(float(t.get_height()) / 1080.0, 0.5);
+		const float2 d[8] = {float2(1, 0), float2(-1, 0), float2(0, 1), float2(0, -1), float2(0.7, 0.7), float2(-0.7, 0.7), float2(0.7, -0.7), float2(-0.7, -0.7)};
+		float3 glow = float3(0.0);
+		for (int i = 0; i < 8; i++) {
+			glow += max(t.sample(s, uv + d[i] * px * (3.0 * scale)).rgb - 0.70, 0.0);
+			glow += max(t.sample(s, uv + d[i] * px * (8.0 * scale)).rgb - 0.70, 0.0);
+		}
+		c += glow * (u.bloom * 0.30 / 8.0);
+	}
+	float l = dot(c, float3(0.2126, 0.7152, 0.0722));
+	float sat = max(c.r, max(c.g, c.b)) - min(c.r, min(c.g, c.b));
+	c = mix(float3(l), c, 1.0 + u.vibrance * (1.0 - sat));
+	c = saturate(c);
+	c = mix(c, c * c * (3.0 - 2.0 * c), u.contrast);
+	c *= float3(1.0 + u.warm, 1.0, 1.0 - u.warm);
+	float2 q = uv - 0.5;
+	c *= 1.0 - u.vignette * dot(q, q) * 1.6;
+	float noise = fract(52.9829189 * fract(dot(in.p.xy, float2(0.06711056, 0.00583715))));
+	c += (noise - 0.5) / 255.0;
+	return float4(saturate(c), 1.0);
+}
+)";
+
 static bool setup() {
 	R->device = R->layer.device ?: MTLCreateSystemDefaultDevice();
 	if (!R->device) return false;
@@ -2539,6 +2626,18 @@ static bool setup() {
 	pd.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
 	R->blitPipe = [R->device newRenderPipelineStateWithDescriptor:pd error:&error];
 	R->capturePipe = R->blitPipe;
+	{
+		NSError *msrError = nil;
+		id<MTLLibrary> msrLibrary = [R->device newLibraryWithSource:[NSString stringWithUTF8String:kMSRShader] options:nil error:&msrError];
+		if (msrLibrary) {
+			MTLRenderPipelineDescriptor *mp = [MTLRenderPipelineDescriptor new];
+			mp.vertexFunction = [msrLibrary newFunctionWithName:@"pg_msr_vertex"];
+			mp.fragmentFunction = [msrLibrary newFunctionWithName:@"pg_msr"];
+			mp.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+			R->msrPipe = [R->device newRenderPipelineStateWithDescriptor:mp error:&msrError];
+		}
+		if (!R->msrPipe) logf("MSR: the finishing pass failed (%s); the picture goes to the screen as it is.", msrError ? msrError.localizedDescription.UTF8String : "unknown");
+	}
 #if MR_TRACE
 	pd.fragmentFunction = [helpers newFunctionWithName:@"pg_alpha"];
 	T.alphaPipe = [R->device newRenderPipelineStateWithDescriptor:pd error:&error];
