@@ -5,7 +5,10 @@
 // multiplied by the chosen factor, so aiming, scopes and the vehicle cameras keep working: only the picture is
 // wider. The factor is separate on foot and in a vehicle and moves smoothly when the player gets in or out.
 // The camera is dropped (the game's own camera is back) in cutscenes, player switches, the pause menu, loading,
-// or when another script takes the camera over; it then waits a few seconds before it tries again.
+// first person (on foot, in a vehicle or aiming: the game's own first-person camera must stay in charge of the head
+// and the weapon), or when another script takes the camera over; it then waits a few seconds before it tries again.
+// The script tick runs before the game moves its camera for the frame, so the copied position is one frame old: the
+// camera is moved ahead by the distance it travelled in the last frame, so walking and fast driving stay smooth.
 static _Atomic bool wfEnabled;
 static _Atomic float wfFoot = 1.0f, wfVehicle = 1.0f;
 void PGSetWideFOV(bool enabled, float foot, float vehicle) {
@@ -32,11 +35,12 @@ static void pg_wf_destroy(w2c_game *instance, int *cam, bool *active) {
 static void pg_wide_fov_tick(w2c_game *instance) {
   static int cam; static bool active; static float factor = 1.0f;
   static double pauseUntil, activeSince; static uint64_t nameSlot;
+  static float lastPosition[3]; static double lastPositionAt; static bool haveLast;
   const bool enabled = atomic_load(&wfEnabled);
   const bool blocked = PGPauseMenuActive() || PGGameStatus() != 0 || PGLoadSceneActive();
   if (!enabled || blocked) {
     if (active) { u64 previous = pg_asi_enter_script(instance); pg_wf_destroy(instance, &cam, &active); pg_asi_leave_script(instance, previous); }
-    factor = 1.0f;
+    factor = 1.0f; haveLast = false;
     return;
   }
   const double now = timeMS(CLOCK_MONOTONIC);
@@ -44,21 +48,28 @@ static void pg_wide_fov_tick(w2c_game *instance) {
   u64 previous = pg_asi_enter_script(instance);
   const u32 ped = PG_FN_PLAYER_PED_ID(instance), vehicle = ped ? PG_FN_PED_VEHICLE(instance, ped, 0) : 0;
   const float target = vehicle ? atomic_load(&wfVehicle) : atomic_load(&wfFoot);
+  // First person (view mode 4 of the on-foot or the vehicle camera, or the first-person aim camera): hands off.
+  const uint64_t viewMode = ped ? pg_test_call(instance, vehicle ? 0xa4ff579ac0e3aaaeull : 0x8d4d46230b2c353aull, 0, NULL) : 0;   // GET_FOLLOW_VEHICLE_CAM_VIEW_MODE / GET_FOLLOW_PED_CAM_VIEW_MODE
+  const bool firstPerson = ped && ((int32_t)(uint32_t)viewMode == 4 || (pg_test_call(instance, 0x5e346d934122613full, 0, NULL) & 1));   // IS_FIRST_PERSON_AIM_CAM_ACTIVE
+  if (firstPerson) {
+    pg_wf_destroy(instance, &cam, &active); factor = 1.0f; haveLast = false; pauseUntil = now + 150;
+    pg_asi_leave_script(instance, previous); return;
+  }
   const bool scripted = !ped || (pg_test_call(instance, 0xd3c2e180a40f031eull, 0, NULL) & 1)             // IS_CUTSCENE_PLAYING
                         || (pg_test_call(instance, 0xd9d2cfff49fab35full, 0, NULL) & 1);                  // IS_PLAYER_SWITCH_IN_PROGRESS
   if (scripted) {
-    pg_wf_destroy(instance, &cam, &active); factor = 1.0f; pauseUntil = now + 500;
+    pg_wf_destroy(instance, &cam, &active); factor = 1.0f; haveLast = false; pauseUntil = now + 500;
     pg_asi_leave_script(instance, previous); return;
   }
   // Another script took the camera (a mission, a cinematic): leave it alone for a while.
   if (active && now - activeSince > 300 && !(pg_test_call(instance, 0x02ec0af5c5a49b7aull, 1, (uint64_t[]){(uint32_t)cam}) & 1)) {   // IS_CAM_RENDERING
-    pg_wf_destroy(instance, &cam, &active); factor = 1.0f; pauseUntil = now + 4000;
+    pg_wf_destroy(instance, &cam, &active); factor = 1.0f; haveLast = false; pauseUntil = now + 4000;
     pg_asi_leave_script(instance, previous); return;
   }
   factor += (target - factor) * 0.2f;
   if (fabsf(target - 1.0f) < 0.005f && fabsf(factor - 1.0f) < 0.005f) {      // nothing to widen: the game's own camera
     if (active) { pg_wf_destroy(instance, &cam, &active); pauseUntil = now + 200; }
-    factor = 1.0f; pg_asi_leave_script(instance, previous); return;
+    factor = 1.0f; haveLast = false; pg_asi_leave_script(instance, previous); return;
   }
   if (!active && !(pg_test_call(instance, 0x39b5d1b10383f0c8ull, 0, NULL) & 1)) {   // IS_GAMEPLAY_CAM_RENDERING: only take over from the gameplay camera
     pauseUntil = now + 1000; pg_asi_leave_script(instance, previous); return;
@@ -80,7 +91,15 @@ static void pg_wide_fov_tick(w2c_game *instance) {
     pg_asi_leave_script(instance, previous); return;
   }
   const float widened = fminf(fov * factor, 110.0f);
-  pg_test_call(instance, 0x4d41783fb745e42eull, 4, (uint64_t[]){(uint32_t)cam, pg_f32_arg(position[0]), pg_f32_arg(position[1]), pg_f32_arg(position[2])});                 // SET_CAM_COORD
+  // One frame ahead: the distance the gameplay camera travelled since the last tick (not across a cut or a teleport).
+  float lead[3] = {0.0f, 0.0f, 0.0f};
+  const double gap = now - lastPositionAt;
+  if (haveLast && gap >= 3.0 && gap <= 70.0) {
+    const float dx = position[0] - lastPosition[0], dy = position[1] - lastPosition[1], dz = position[2] - lastPosition[2];
+    if (dx * dx + dy * dy + dz * dz < 36.0f) { lead[0] = dx; lead[1] = dy; lead[2] = dz; }
+  }
+  memcpy(lastPosition, position, sizeof position); lastPositionAt = now; haveLast = true;
+  pg_test_call(instance, 0x4d41783fb745e42eull, 4, (uint64_t[]){(uint32_t)cam, pg_f32_arg(position[0] + lead[0]), pg_f32_arg(position[1] + lead[1]), pg_f32_arg(position[2] + lead[2])});   // SET_CAM_COORD
   pg_test_call(instance, 0x85973643155d0b07ull, 5, (uint64_t[]){(uint32_t)cam, pg_f32_arg(rotation[0]), pg_f32_arg(rotation[1]), pg_f32_arg(rotation[2]), 2});               // SET_CAM_ROT
   pg_test_call(instance, 0xb13c14f66a00d047ull, 2, (uint64_t[]){(uint32_t)cam, pg_f32_arg(widened)});                                                                      // SET_CAM_FOV
   if (!active) {

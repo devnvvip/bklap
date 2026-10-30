@@ -302,8 +302,36 @@ static u32 pg_hit_valid_candidate(u32 candidate, u32 own) {
   return (candidate && candidate != (u32)-1 && candidate != own && !pg_hit_known(candidate)) ? candidate : 0;
 }
 
+// Bất tử + đâm xe nổ chỉ hoạt động sau khi đã hoàn thành toàn bộ nhiệm vụ cốt truyện. Cờ này được app lưu lại
+// (GameSettings.storyCompleted) và đặt lúc khởi động bằng PGSetStoryCompleted; khi game chạy cảnh kết thúc cốt truyện
+// (script finale_endgame hoặc finale_credits) thì tự bật và báo cho app bằng PGStoryCompletedNewlyDetected.
+static _Atomic bool storyDone, storyDoneNew;
+void PGSetStoryCompleted(bool done) { atomic_store(&storyDone, done); }
+bool PGStoryCompletedNewlyDetected(void) { return atomic_exchange(&storyDoneNew, false); }
+static void pg_story_watch_tick(void) {
+  static double last = 0.0;
+  if (atomic_load(&storyDone) || !atomic_load(&inputBlock)) return;
+  const double now = timeMS(CLOCK_MONOTONIC);
+  if (now - last < 1000.0) return;      // mỗi giây một lần là đủ
+  last = now;
+  const uint8_t *m = (const uint8_t *)(void *)env.memory.data; const uint64_t msize = env.memory.size;
+  uint64_t threads = 0; uint16_t count = 0;
+  if (!pg_context_u64(m, msize, 15409704, &threads) || !threads || !pg_context_u16(m, msize, 15409712, &count)) return;
+  for (uint16_t i = 0; i < count && i < 512; i++) {
+    uint64_t thread;
+    if (!pg_context_u64(m, msize, threads + 8ull * i, &thread) || !thread || thread + 460 > msize) continue;
+    const char *name = (const char *)(m + thread + 428);
+    if (!strncasecmp(name, "finale_endgame", 14) || !strncasecmp(name, "finale_credits", 14)) {
+      atomic_store(&storyDone, true); atomic_store(&storyDoneNew, true);
+      pg_log("Story: finished, god mode and crash explosions are now on.");
+      return;
+    }
+  }
+}
+
 static void pg_vehicle_god_mod_tick(w2c_game *instance) {
   if (PGPauseMenuActive() || PGGameStatus() != 0 || PGLoadSceneActive()) return;
+  if (!atomic_load(&storyDone)) return;      // chưa xong cốt truyện: không bất tử, không đâm xe nổ
   u32 ped = PG_FN_PLAYER_PED_ID(instance);
   if (!ped) return;
 
@@ -399,26 +427,30 @@ static void pg_vehicle_god_mod_tick(w2c_game *instance) {
 
       bool hitTarget = false;
 
-      if (currentSpeed > 3.0f || lastSpeed > 3.0f) {
-        // Quét nhiều điểm phía trước, bắt đầu cách tâm xe 3.4 m để không bao giờ chọn nhầm chính xe người chơi.
-        static const float probeDist[4] = {3.4f, 5.0f, 6.6f, 8.2f};
+      if (currentSpeed > 0.5f || lastSpeed > 0.5f || collided || hitVehTime < 500) {
+        // Điểm quét cách tâm xe 3.4 m trở lên (bán kính 2.8 m nên không bao giờ chọn nhầm xe của người chơi): 4 điểm phía
+        // trước, 1 phía sau và 2 bên, để xe nào chạm vào, từ hướng nào (kể cả xe cảnh sát tông từ sau hoặc hông), cũng bị bắt.
+        static const float probe[7][2] = {{3.4f, 0.0f}, {5.0f, 0.0f}, {6.6f, 0.0f}, {8.2f, 0.0f}, {-3.4f, 0.0f}, {0.0f, 3.4f}, {0.0f, -3.4f}};   // {tiến, sang phải}
 
-        // 1. XE KHÁC: bị hất bay rồi nổ (mọi loại xe, kể cả xe không người lái/xe đỗ/xe mod)
-        u32 otherVehicle = 0;
-        for (int k = 0; k < 4 && !otherVehicle; k++) {
-          float px = vx + dirX * probeDist[k], py = vy + dirY * probeDist[k];
-          otherVehicle = pg_hit_valid_candidate((u32)pg_test_call(instance, 0xf73eb622c4f1689bull, 6,
-            (uint64_t[]){pg_f32_arg(px), pg_f32_arg(py), pg_f32_arg(vz), pg_f32_arg(2.8f), 0, 70}), vehicle); // GET_CLOSEST_VEHICLE
-          if (!otherVehicle)
-            otherVehicle = pg_hit_valid_candidate((u32)pg_test_call(instance, 0xf73eb622c4f1689bull, 6,
-              (uint64_t[]){pg_f32_arg(px), pg_f32_arg(py), pg_f32_arg(vz), pg_f32_arg(2.8f), 0, 0}), vehicle); // không lọc cờ: lấy cả xe bị loại ở lần trên
-        }
-        if (otherVehicle) {
-          int touchingVeh = (int)(pg_test_call(instance, 0x17ffc1b2ba35a494ull, 2, (uint64_t[]){vehicle, otherVehicle}) & 1); // IS_ENTITY_TOUCHING_ENTITY
-          int dead = (int)(pg_test_call(instance, 0x5f9532f3b5cc2551ull, 1, (uint64_t[]){otherVehicle}) & 1); // IS_ENTITY_DEAD
-          if (!dead && (touchingVeh || (collided && hitVehTime < 350))) {
-            hitTarget = true;
-            pg_hit_start(instance, otherVehicle, true, dirX, dirY, now, player);
+        // 1. XE KHÁC: chỉ cần chạm nhẹ là bị hất bay rồi nổ (mọi loại xe, kể cả cảnh sát, xe không người lái/xe đỗ/xe mod)
+        int started = 0;
+        for (int k = 0; k < 7 && started < 2; k++) {
+          float px = vx + dirX * probe[k][0] + dirY * probe[k][1], py = vy + dirY * probe[k][0] - dirX * probe[k][1];
+          for (int pass = 0; pass < 2; pass++) {
+            u32 other = pg_hit_valid_candidate((u32)pg_test_call(instance, 0xf73eb622c4f1689bull, 6,
+              (uint64_t[]){pg_f32_arg(px), pg_f32_arg(py), pg_f32_arg(vz), pg_f32_arg(2.8f), 0, pass ? 0 : 70}), vehicle); // GET_CLOSEST_VEHICLE (lần 2 không lọc cờ)
+            if (!other) continue;
+            int dead = (int)(pg_test_call(instance, 0x5f9532f3b5cc2551ull, 1, (uint64_t[]){other}) & 1); // IS_ENTITY_DEAD
+            if (!dead) {
+              int touching = (int)(pg_test_call(instance, 0x17ffc1b2ba35a494ull, 2, (uint64_t[]){vehicle, other}) & 1); // IS_ENTITY_TOUCHING_ENTITY
+              bool close = false;
+              if (!touching && collided && hitVehTime < 500) {
+                float op[3];
+                close = pg_hit_position(instance, other, op) && sqrtf((op[0] - vx) * (op[0] - vx) + (op[1] - vy) * (op[1] - vy)) < 7.5f;
+              }
+              if (touching || close) { hitTarget = true; started++; pg_hit_start(instance, other, true, dirX, dirY, now, player); }
+            }
+            break;
           }
         }
 
@@ -469,6 +501,7 @@ static void pg_native_cheats_tick(w2c_game *instance) {
   pg_scene_transition_trace();
   // Luôn dọn dẹp triệt để mọi hiệu ứng làm mờ màn hình mỗi frame trong script context
   pg_clear_all_screen_blur(instance);
+  pg_story_watch_tick();
   pg_vehicle_god_mod_tick(instance);
   pg_native_cheats_action_tick(instance);
   pg_apply_pending_cheat_switches(instance);
