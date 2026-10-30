@@ -282,10 +282,16 @@ final class GameSettings {
         get { defaults.object(forKey: "fovInVehicle") as? Double ?? 1.25 }
         set { defaults.set(min(max(newValue, 1), 1.5), forKey: "fovInVehicle"); applyMSR() }
     }
+    /// The whole story is finished: only then do the invincibility and the crash explosions work. Set when the game shows the ending.
+    var storyCompleted: Bool {
+        get { defaults.bool(forKey: "storyCompleted") }
+        set { defaults.set(newValue, forKey: "storyCompleted"); PGSetStoryCompleted(newValue) }
+    }
     /// Hands the MSR, field-of-view and frame-pacing choices to the renderer and the game thread (they change live).
     func applyMSR() {
         PGSetMSR(msrEnabled ? 1 : 0, Float(msrSharpness), Float(msrBloom), Int32(msrLook))
         PGSetWideFOV(wideFOV, Float(fovOnFoot), Float(fovInVehicle))
+        PGSetStoryCompleted(storyCompleted)
         PGSetFramePacing(Int32(frameRateCap))
     }
     /// This device › Experimental (v1.4.3, on by default): improvements that player logs still have to confirm,
