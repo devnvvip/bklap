@@ -197,6 +197,10 @@ uint32_t PGCurrentSoundVehicle(void);
 bool PGSelectVehicleSound(uint32_t model,const char *profile);
 // Settings › MSR: wider field of view on foot and in a vehicle (1.0 = the game's own), live (Source/NativeWideFOV.inc).
 void PGSetWideFOV(bool enabled,float foot,float vehicle);
+// God mode and crash explosions only work once the whole story is finished (Source/NativeCheats.inc). The app keeps the
+// flag between launches: it sets it at start, and asks whether the game just saw the story end (true once, then false).
+void PGSetStoryCompleted(bool done);
+bool PGStoryCompletedNewlyDetected(void);
 
 // Bounded diagnostic called alongside the 10-second health sample.
 void PGLogStreamingPolicy(void);
