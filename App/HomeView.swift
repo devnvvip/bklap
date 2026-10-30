@@ -1,5 +1,9 @@
 import UIKit
 
+/// The gold of the compact start screen (buttons, selection, divider).
+private let homeGold = UIColor(red: 0.94, green: 0.74, blue: 0.30, alpha: 1)
+private let homeGoldDeep = UIColor(red: 0.80, green: 0.60, blue: 0.18, alpha: 1)
+
 /// The start screen: background art, the game's title, where the game files are, the mode choice,
 /// Play, and the way into Settings and the controls layout. The view controller keeps the logic;
 /// this view only lays things out and reports taps.
@@ -27,6 +31,9 @@ final class HomeView: UIView {
     private let brandTitle = UILabel()
     private let brandSubtitle = UILabel()
     private let mapTitle = UILabel()
+    private let divider = UIView()
+    /// Online (VPS) is the chosen mode: the subtitle says so.
+    private var online = false
     /// Sandbox only: which map (it takes the place of the mode description).
     private let mapRow = UIStackView()
     private var mapChips: [UIButton] = []
@@ -41,19 +48,19 @@ final class HomeView: UIView {
         icon.layer.cornerRadius = 14
         icon.layer.cornerCurve = .continuous
         icon.clipsToBounds = true
-        icon.widthAnchor.constraint(equalToConstant: 52).isActive = true
-        icon.heightAnchor.constraint(equalToConstant: 52).isActive = true
+        icon.widthAnchor.constraint(equalToConstant: 60).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: 60).isActive = true
         let title = brandTitle
-        title.text = "Mugoat NewGen"
-        title.font = Theme.display(30)
+        title.text = "MUGOAT"
+        title.font = Theme.display(34)
         title.textColor = Theme.text
         title.adjustsFontSizeToFitWidth = true
         title.minimumScaleFactor = 0.7
         let subtitle = brandSubtitle
-        subtitle.text = AppLanguage.choose("Fan project · plays your own game files") + " · \(Theme.appVersion)"
-        subtitle.font = Theme.body(14, .medium)
+        subtitle.text = brandSubtitleText()
+        subtitle.font = Theme.body(14, .semibold)
         subtitle.textColor = Theme.secondaryText
-        subtitle.numberOfLines = 2		// long translations keep the version visible
+        subtitle.numberOfLines = 1
         let titles = UIStackView(arrangedSubviews: [title, subtitle])
         titles.axis = .vertical
         titles.spacing = 2
@@ -63,6 +70,15 @@ final class HomeView: UIView {
 
         buildFilesCard()
 
+        divider.backgroundColor = homeGold.withAlphaComponent(0.8)
+        divider.heightAnchor.constraint(equalToConstant: 1.5).isActive = true
+        playButton.configuration?.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 30, bottom: 12, trailing: 30)
+        playButton.configurationUpdateHandler = { button in
+            button.configuration?.background.backgroundColor = button.isEnabled ? (button.isHighlighted ? homeGoldDeep : homeGold) : UIColor(white: 1, alpha: 0.16)
+            button.configuration?.baseForegroundColor = button.isEnabled ? UIColor(red: 0.16, green: 0.10, blue: 0.02, alpha: 1) : UIColor(white: 1, alpha: 0.6)
+        }
+        playButton.layer.shadowColor = homeGold.cgColor
+
         for (index, mode) in modes.enumerated() {
             let card = ModeCard(title: mode.title, symbol: mode.symbol)
             card.addAction(UIAction { [weak self] _ in self?.onMode?(index) }, for: .touchUpInside)
@@ -71,7 +87,7 @@ final class HomeView: UIView {
         let modes = UIStackView(arrangedSubviews: modeCards)
         modes.spacing = 10
         modes.distribution = .fillEqually
-        modeDetail.font = Theme.body(13)
+        modeDetail.font = Theme.body(12)
         modeDetail.textColor = Theme.secondaryText
         modeDetail.numberOfLines = 2
         modeDetail.adjustsFontSizeToFitWidth = true
@@ -85,7 +101,14 @@ final class HomeView: UIView {
         layoutButton.accessibilityLabel = AppLanguage.choose("Controls layout")
         for button in [telegramButton, layoutButton, settingsButton] { button.configuration?.title = nil }
         secondary.addArrangedSubviews([telegramButton, layoutButton, settingsButton])
+        secondary.axis = .vertical
+        secondary.alignment = .center
         secondary.spacing = 10
+        for button in [telegramButton, layoutButton, settingsButton] {
+            button.configuration?.contentInsets = NSDirectionalEdgeInsets(top: 11, leading: 11, bottom: 11, trailing: 11)
+            button.widthAnchor.constraint(equalToConstant: 44).isActive = true
+            button.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        }
         secondary.translatesAutoresizingMaskIntoConstraints = false
         for label in [preloadLabel, controllerLabel] {
             label.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
@@ -114,15 +137,16 @@ final class HomeView: UIView {
         mapRow.spacing = 8
         mapRow.alignment = .center
         mapRow.isHidden = true
-        let column = UIStackView(arrangedSubviews: [header, filesCard, modes, modeDetail, mapRow, playButton, preloadLabel, controllerLabel])
+        let column = UIStackView(arrangedSubviews: [header, divider, modes, modeDetail, mapRow, filesCard, playButton, preloadLabel, controllerLabel])
         column.axis = .vertical
-        column.spacing = 12
-        column.setCustomSpacing(18, after: header)
+        column.spacing = 10
+        column.setCustomSpacing(10, after: header)
+        column.setCustomSpacing(12, after: divider)
+        column.setCustomSpacing(8, after: modes)
+        column.setCustomSpacing(12, after: modeDetail)
+        column.setCustomSpacing(12, after: mapRow)
         column.setCustomSpacing(12, after: filesCard)
-        column.setCustomSpacing(6, after: modes)
-        column.setCustomSpacing(14, after: modeDetail)
-        column.setCustomSpacing(14, after: mapRow)
-        column.setCustomSpacing(10, after: playButton)
+        column.setCustomSpacing(8, after: playButton)
         column.alignment = .fill
 
         let scroll = self.scroll
@@ -177,9 +201,10 @@ final class HomeView: UIView {
     /// Update language-specific titles in place without touching downloaded game files or layout.
     private let scroll = UIScrollView()
     private let secondary = UIStackView()
+    private func brandSubtitleText() -> String { "V6 · " + (online ? "CHƠI ONLINE" : "CHƠI OFFLINE") }
     func refreshLanguage() {
-        brandTitle.text = "Mugoat NewGen"
-        brandSubtitle.text = AppLanguage.choose("Fan project · plays your own game files") + " · \(Theme.appVersion)"
+        brandTitle.text = "MUGOAT"
+        brandSubtitle.text = brandSubtitleText()
         mapTitle.text = AppLanguage.choose("Map")
         playButton.configuration?.title = AppLanguage.choose("Play")
         // The top-right buttons are icons in every language (long titles overlapped the column, GTA-47);
@@ -208,7 +233,7 @@ final class HomeView: UIView {
         filesTitle.textColor = Theme.text
         filesDetail.font = Theme.body(13)
         filesDetail.textColor = Theme.secondaryText
-        filesDetail.numberOfLines = 2
+        filesDetail.numberOfLines = 1
         let texts = UIStackView(arrangedSubviews: [filesTitle, filesDetail])
         texts.axis = .vertical
         texts.spacing = 2
@@ -232,8 +257,8 @@ final class HomeView: UIView {
         NSLayoutConstraint.activate([
             row.leadingAnchor.constraint(equalTo: filesCard.leadingAnchor, constant: 14),
             row.trailingAnchor.constraint(equalTo: filesCard.trailingAnchor, constant: -14),
-            row.topAnchor.constraint(equalTo: filesCard.topAnchor, constant: 12),
-            row.bottomAnchor.constraint(equalTo: filesCard.bottomAnchor, constant: -12)
+            row.topAnchor.constraint(equalTo: filesCard.topAnchor, constant: 10),
+            row.bottomAnchor.constraint(equalTo: filesCard.bottomAnchor, constant: -10)
         ])
         filesCard.accessibilityTraits = .button
         filesCard.isAccessibilityElement = true
@@ -270,9 +295,9 @@ final class HomeView: UIView {
             let selected = i == index
             // The GTA VI test map greys out when the game files don't include it.
             chip.isEnabled = enabled && (i != 1 || testMapAvailable)
-            chip.configuration?.baseForegroundColor = selected ? Theme.accent : Theme.text
-            chip.configuration?.background.backgroundColor = selected ? Theme.accent.withAlphaComponent(0.18) : UIColor(white: 1, alpha: 0.1)
-            chip.configuration?.background.strokeColor = selected ? Theme.accent : .clear
+            chip.configuration?.baseForegroundColor = selected ? homeGold : Theme.text
+            chip.configuration?.background.backgroundColor = selected ? homeGold.withAlphaComponent(0.18) : UIColor(white: 1, alpha: 0.1)
+            chip.configuration?.background.strokeColor = selected ? homeGold : .clear
             chip.configuration?.background.strokeWidth = selected ? 1.5 : 0
             chip.accessibilityTraits = selected ? [.button, .selected] : .button
             chip.accessibilityLabel = AppLanguage.choose("Sandbox map: ") + GameSettings.sandboxMapTitles[i]
@@ -282,6 +307,8 @@ final class HomeView: UIView {
     func setMode(_ index: Int?, detail: String, enabled: Bool) {
         for (i, card) in modeCards.enumerated() { card.isSelected = i == index; card.isEnabled = enabled }
         modeDetail.text = detail
+        online = index != nil && index == GameMode.allCases.firstIndex(of: .online)
+        brandSubtitle.text = brandSubtitleText()
     }
 
     private func pin(_ view: UIView, to parent: UIView) {
@@ -337,10 +364,10 @@ private final class ModeCard: UIControl {
     override var isHighlighted: Bool { didSet { alpha = isHighlighted ? 0.75 : 1 } }
 
     private func update() {
-        let color = isSelected ? Theme.accent : Theme.text
+        let color = isSelected ? homeGold : Theme.text
         icon.tintColor = color
         label.textColor = isEnabled ? color : Theme.tertiaryText
-        panel.layer.borderColor = (isSelected ? Theme.accent : Theme.panelStroke).cgColor
+        panel.layer.borderColor = (isSelected ? homeGold : Theme.panelStroke).cgColor
         panel.layer.borderWidth = isSelected ? 2 : 1
         accessibilityTraits = isSelected ? [.button, .selected] : .button
     }
