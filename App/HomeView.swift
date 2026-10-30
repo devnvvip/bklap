@@ -45,39 +45,43 @@ final class HomeView: UIView {
         pin(backdrop, to: self)
 
         let icon = UIImageView(image: UIImage(named: "HomeIcon"))
-        icon.layer.cornerRadius = 14
+        icon.layer.cornerRadius = 10
         icon.layer.cornerCurve = .continuous
         icon.clipsToBounds = true
-        icon.widthAnchor.constraint(equalToConstant: 60).isActive = true
-        icon.heightAnchor.constraint(equalToConstant: 60).isActive = true
+        icon.widthAnchor.constraint(equalToConstant: 44).isActive = true
+        icon.heightAnchor.constraint(equalToConstant: 44).isActive = true
         let title = brandTitle
         title.text = "MUGOAT"
-        title.font = Theme.display(34)
+        title.font = Theme.display(26)
         title.textColor = Theme.text
         title.adjustsFontSizeToFitWidth = true
         title.minimumScaleFactor = 0.7
         let subtitle = brandSubtitle
         subtitle.text = brandSubtitleText()
-        subtitle.font = Theme.body(14, .semibold)
+        subtitle.font = Theme.body(12, .semibold)
         subtitle.textColor = Theme.secondaryText
         subtitle.numberOfLines = 1
         let titles = UIStackView(arrangedSubviews: [title, subtitle])
         titles.axis = .vertical
-        titles.spacing = 2
+        titles.spacing = 1
         let header = UIStackView(arrangedSubviews: [icon, titles])
-        header.spacing = 14
+        header.spacing = 10
         header.alignment = .center
 
         buildFilesCard()
 
         divider.backgroundColor = homeGold.withAlphaComponent(0.8)
-        divider.heightAnchor.constraint(equalToConstant: 1.5).isActive = true
-        playButton.configuration?.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 30, bottom: 12, trailing: 30)
+        divider.heightAnchor.constraint(equalToConstant: 1).isActive = true
+        playButton.configuration?.contentInsets = NSDirectionalEdgeInsets(top: 9, leading: 24, bottom: 9, trailing: 24)
+        playButton.configuration?.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { attributes in
+            var attributes = attributes; attributes.font = Theme.display(17, .heavy); return attributes
+        }
         playButton.configurationUpdateHandler = { button in
             button.configuration?.background.backgroundColor = button.isEnabled ? (button.isHighlighted ? homeGoldDeep : homeGold) : UIColor(white: 1, alpha: 0.16)
             button.configuration?.baseForegroundColor = button.isEnabled ? UIColor(red: 0.16, green: 0.10, blue: 0.02, alpha: 1) : UIColor(white: 1, alpha: 0.6)
         }
         playButton.layer.shadowColor = homeGold.cgColor
+        playButton.layer.shadowRadius = 10
 
         for (index, mode) in modes.enumerated() {
             let card = ModeCard(title: mode.title, symbol: mode.symbol)
@@ -85,9 +89,9 @@ final class HomeView: UIView {
             modeCards.append(card)
         }
         let modes = UIStackView(arrangedSubviews: modeCards)
-        modes.spacing = 10
+        modes.spacing = 8
         modes.distribution = .fillEqually
-        modeDetail.font = Theme.body(12)
+        modeDetail.font = Theme.body(11)
         modeDetail.textColor = Theme.secondaryText
         modeDetail.numberOfLines = 2
         modeDetail.adjustsFontSizeToFitWidth = true
@@ -103,15 +107,15 @@ final class HomeView: UIView {
         secondary.addArrangedSubviews([telegramButton, layoutButton, settingsButton])
         secondary.axis = .vertical
         secondary.alignment = .center
-        secondary.spacing = 10
+        secondary.spacing = 8
         for button in [telegramButton, layoutButton, settingsButton] {
-            button.configuration?.contentInsets = NSDirectionalEdgeInsets(top: 11, leading: 11, bottom: 11, trailing: 11)
-            button.widthAnchor.constraint(equalToConstant: 44).isActive = true
-            button.heightAnchor.constraint(equalToConstant: 44).isActive = true
+            button.configuration?.contentInsets = NSDirectionalEdgeInsets(top: 9, leading: 9, bottom: 9, trailing: 9)
+            button.widthAnchor.constraint(equalToConstant: 38).isActive = true
+            button.heightAnchor.constraint(equalToConstant: 38).isActive = true
         }
         secondary.translatesAutoresizingMaskIntoConstraints = false
         for label in [preloadLabel, controllerLabel] {
-            label.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+            label.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
             label.textColor = Theme.tertiaryText
             label.numberOfLines = 0
         }
@@ -119,34 +123,34 @@ final class HomeView: UIView {
 
         let mapLabel = mapTitle
         mapLabel.text = AppLanguage.choose("Map")
-        mapLabel.font = Theme.body(13, .semibold)
+        mapLabel.font = Theme.body(12, .semibold)
         mapLabel.textColor = Theme.secondaryText
         mapRow.addArrangedSubview(mapLabel)
         for (index, title) in GameSettings.sandboxMapTitles.enumerated() {
             var config = UIButton.Configuration.gray()
             config.title = title
             config.cornerStyle = .capsule
-            config.contentInsets = NSDirectionalEdgeInsets(top: 5, leading: 12, bottom: 5, trailing: 12)
-            config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { a in var a = a; a.font = Theme.body(13, .semibold); return a }
+            config.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 10, bottom: 4, trailing: 10)
+            config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { a in var a = a; a.font = Theme.body(12, .semibold); return a }
             let chip = UIButton(configuration: config)
             chip.addAction(UIAction { [weak self] _ in self?.onMap?(index) }, for: .touchUpInside)
             mapChips.append(chip)
             mapRow.addArrangedSubview(chip)
         }
         mapRow.addArrangedSubview(UIView())
-        mapRow.spacing = 8
+        mapRow.spacing = 6
         mapRow.alignment = .center
         mapRow.isHidden = true
         let column = UIStackView(arrangedSubviews: [header, divider, modes, modeDetail, mapRow, filesCard, playButton, preloadLabel, controllerLabel])
         column.axis = .vertical
-        column.spacing = 10
-        column.setCustomSpacing(10, after: header)
-        column.setCustomSpacing(12, after: divider)
-        column.setCustomSpacing(8, after: modes)
-        column.setCustomSpacing(12, after: modeDetail)
-        column.setCustomSpacing(12, after: mapRow)
-        column.setCustomSpacing(12, after: filesCard)
-        column.setCustomSpacing(8, after: playButton)
+        column.spacing = 8
+        column.setCustomSpacing(8, after: header)
+        column.setCustomSpacing(10, after: divider)
+        column.setCustomSpacing(6, after: modes)
+        column.setCustomSpacing(8, after: modeDetail)
+        column.setCustomSpacing(8, after: mapRow)
+        column.setCustomSpacing(10, after: filesCard)
+        column.setCustomSpacing(6, after: playButton)
         column.alignment = .fill
 
         let scroll = self.scroll
@@ -160,10 +164,10 @@ final class HomeView: UIView {
         addSubview(log)
         addSubview(secondary)
         let guide = safeAreaLayoutGuide
-        let width = column.widthAnchor.constraint(equalTo: guide.widthAnchor, multiplier: 0.44)
+        let width = column.widthAnchor.constraint(equalTo: guide.widthAnchor, multiplier: 0.36)
         width.priority = .defaultHigh
         NSLayoutConstraint.activate([
-            scroll.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: 28),
+            scroll.leadingAnchor.constraint(equalTo: guide.leadingAnchor, constant: 24),
             scroll.topAnchor.constraint(equalTo: topAnchor),
             scroll.bottomAnchor.constraint(equalTo: bottomAnchor),
             scroll.widthAnchor.constraint(equalTo: column.widthAnchor),
@@ -174,12 +178,12 @@ final class HomeView: UIView {
             // Centred vertically when there's room, scrolling when there isn't.
             column.heightAnchor.constraint(greaterThanOrEqualTo: scroll.frameLayoutGuide.heightAnchor, constant: -24),
             width,
-            column.widthAnchor.constraint(lessThanOrEqualToConstant: 440),
-            column.widthAnchor.constraint(greaterThanOrEqualToConstant: 320),
+            column.widthAnchor.constraint(lessThanOrEqualToConstant: 340),
+            column.widthAnchor.constraint(greaterThanOrEqualToConstant: 280),
             secondary.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -20),
             // Long translations (Russian, German) must not run over the title column.
             secondary.leadingAnchor.constraint(greaterThanOrEqualTo: scroll.trailingAnchor, constant: 12),
-            secondary.topAnchor.constraint(equalTo: guide.topAnchor, constant: 14),
+            secondary.topAnchor.constraint(equalTo: guide.topAnchor, constant: 10),
             log.leadingAnchor.constraint(equalTo: scroll.trailingAnchor, constant: 20),
             log.trailingAnchor.constraint(equalTo: guide.trailingAnchor, constant: -16),
             log.topAnchor.constraint(equalTo: secondary.bottomAnchor, constant: 12),
@@ -223,21 +227,21 @@ final class HomeView: UIView {
     }
 
     private func buildFilesCard() {
-        let panel = Theme.panel(cornerRadius: 16)
+        let panel = Theme.panel(cornerRadius: 12)
         panel.isUserInteractionEnabled = false
         pin(panel, to: filesCard)
         filesIcon.contentMode = .scaleAspectFit
-        filesIcon.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 22, weight: .semibold)
-        filesIcon.widthAnchor.constraint(equalToConstant: 30).isActive = true
-        filesTitle.font = Theme.body(16, .semibold)
+        filesIcon.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)
+        filesIcon.widthAnchor.constraint(equalToConstant: 24).isActive = true
+        filesTitle.font = Theme.body(14, .semibold)
         filesTitle.textColor = Theme.text
-        filesDetail.font = Theme.body(13)
+        filesDetail.font = Theme.body(11)
         filesDetail.textColor = Theme.secondaryText
         filesDetail.numberOfLines = 1
         let texts = UIStackView(arrangedSubviews: [filesTitle, filesDetail])
         texts.axis = .vertical
-        texts.spacing = 2
-        let chevron = UIImageView(image: UIImage(systemName: "chevron.right", withConfiguration: UIImage.SymbolConfiguration(pointSize: 14, weight: .bold)))
+        texts.spacing = 1
+        let chevron = UIImageView(image: UIImage(systemName: "chevron.right", withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .bold)))
         chevron.tintColor = Theme.tertiaryText
         chevron.setContentHuggingPriority(.required, for: .horizontal)
         filesSpinner.color = Theme.text
@@ -247,18 +251,18 @@ final class HomeView: UIView {
             iconHolder.addSubview(view)
             NSLayoutConstraint.activate([view.centerXAnchor.constraint(equalTo: iconHolder.centerXAnchor), view.centerYAnchor.constraint(equalTo: iconHolder.centerYAnchor)])
         }
-        iconHolder.widthAnchor.constraint(equalToConstant: 30).isActive = true
+        iconHolder.widthAnchor.constraint(equalToConstant: 24).isActive = true
         let row = UIStackView(arrangedSubviews: [iconHolder, texts, chevron])
-        row.spacing = 12
+        row.spacing = 10
         row.alignment = .center
         row.isUserInteractionEnabled = false
         row.translatesAutoresizingMaskIntoConstraints = false
         filesCard.addSubview(row)
         NSLayoutConstraint.activate([
-            row.leadingAnchor.constraint(equalTo: filesCard.leadingAnchor, constant: 14),
-            row.trailingAnchor.constraint(equalTo: filesCard.trailingAnchor, constant: -14),
-            row.topAnchor.constraint(equalTo: filesCard.topAnchor, constant: 10),
-            row.bottomAnchor.constraint(equalTo: filesCard.bottomAnchor, constant: -10)
+            row.leadingAnchor.constraint(equalTo: filesCard.leadingAnchor, constant: 12),
+            row.trailingAnchor.constraint(equalTo: filesCard.trailingAnchor, constant: -12),
+            row.topAnchor.constraint(equalTo: filesCard.topAnchor, constant: 7),
+            row.bottomAnchor.constraint(equalTo: filesCard.bottomAnchor, constant: -7)
         ])
         filesCard.accessibilityTraits = .button
         filesCard.isAccessibilityElement = true
@@ -323,7 +327,7 @@ final class HomeView: UIView {
 
 /// One of the Story mode / Sandbox cards.
 private final class ModeCard: UIControl {
-    private let panel = Theme.panel(cornerRadius: 14)
+    private let panel = Theme.panel(cornerRadius: 11)
     private let icon = UIImageView()
     private let label = UILabel()
 
@@ -332,11 +336,11 @@ private final class ModeCard: UIControl {
         panel.isUserInteractionEnabled = false
         panel.translatesAutoresizingMaskIntoConstraints = false
         addSubview(panel)
-        icon.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold))
+        icon.image = UIImage(systemName: symbol, withConfiguration: UIImage.SymbolConfiguration(pointSize: 14, weight: .semibold))
         label.text = title
-        label.font = Theme.body(15, .semibold)
+        label.font = Theme.body(13, .semibold)
         let row = UIStackView(arrangedSubviews: [icon, label])
-        row.spacing = 8
+        row.spacing = 6
         row.alignment = .center
         row.isUserInteractionEnabled = false
         row.translatesAutoresizingMaskIntoConstraints = false
@@ -346,7 +350,7 @@ private final class ModeCard: UIControl {
             panel.topAnchor.constraint(equalTo: topAnchor), panel.bottomAnchor.constraint(equalTo: bottomAnchor),
             row.centerXAnchor.constraint(equalTo: centerXAnchor), row.centerYAnchor.constraint(equalTo: centerYAnchor),
             row.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 10),
-            heightAnchor.constraint(equalToConstant: 44)
+            heightAnchor.constraint(equalToConstant: 34)
         ])
         isAccessibilityElement = true
         accessibilityLabel = title
@@ -368,7 +372,7 @@ private final class ModeCard: UIControl {
         icon.tintColor = color
         label.textColor = isEnabled ? color : Theme.tertiaryText
         panel.layer.borderColor = (isSelected ? homeGold : Theme.panelStroke).cgColor
-        panel.layer.borderWidth = isSelected ? 2 : 1
+        panel.layer.borderWidth = isSelected ? 1.5 : 1
         accessibilityTraits = isSelected ? [.button, .selected] : .button
     }
 }
