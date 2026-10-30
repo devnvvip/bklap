@@ -161,13 +161,20 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         if ProcessInfo.processInfo.environment["PG_BENCHMARK"] != nil { return }
         DispatchQueue.main.async { [self] in
             let cap = GameSettings.shared.frameRateCap
-            let limit: Int32 = cap == 0 ? 0 : 1 // 0: unlock toi da 120, 1: khoa cung 60
+            let limit: Int32 = cap == 120 ? 0 : 1 // 1: khoa cung 60 FPS; 0: engine khong tu han che, man hinh khoa cung 120 FPS
+            applyDisplayFrameRate()
             if thermalFrameLimit != limit {
-                appendLog("Frame limit: \(limit == 0 ? "unlocked (up to 120 FPS)" : "locked strictly to 60 FPS").")
+                appendLog("Frame limit: \(limit == 0 ? "locked strictly to 120 FPS" : "locked strictly to 60 FPS").")
                 PGSetFrameLimit(limit)
             }
             thermalFrameLimit = limit
         }
+    }
+    /// Khóa cứng tốc độ làm tươi của màn hình theo lựa chọn: đúng 60 hoặc đúng 120 FPS (ProMotion).
+    private func applyDisplayFrameRate() {
+        let screenMax = view.window?.screen.maximumFramesPerSecond ?? 120
+        let rate: Float = GameSettings.shared.frameRateCap == 120 ? Float(min(120, max(screenMax, 60))) : 60
+        displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: rate, maximum: rate, preferred: rate)
     }
     private var lastHealth: [UInt64] = [0, 0, 0, 0, 0, 0, 0, 0]
     private var padProof: PGPadState?
@@ -443,8 +450,8 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(lookForGameFiles), name: UIApplication.didBecomeActiveNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(installChanged), name: .gameInstallChanged, object: nil)
         displayLink = CADisplayLink(target: self, selector: #selector(pollController))
-        // Khóa cứng nghiêm ngặt đúng 60 FPS
-        displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
+        // Khóa cứng nghiêm ngặt đúng 60 hoặc đúng 120 FPS theo cài đặt
+        applyDisplayFrameRate()
         displayLink?.add(to: .main, forMode: .common)
         #if targetEnvironment(simulator)
         DebugChannel.shared.start(self)
