@@ -195,6 +195,8 @@ double PGGPUFrameMilliseconds(void);		// MRRenderer.mm
 void PGEnableSoundMods(bool enabled);
 uint32_t PGCurrentSoundVehicle(void);
 bool PGSelectVehicleSound(uint32_t model,const char *profile);
+// Settings › MSR: wider field of view on foot and in a vehicle (1.0 = the game's own), live (Source/NativeWideFOV.inc).
+void PGSetWideFOV(bool enabled,float foot,float vehicle);
 
 // Bounded diagnostic called alongside the 10-second health sample.
 void PGLogStreamingPolicy(void);
