@@ -332,15 +332,15 @@ final class GameSettings {
         set { defaults.set(newValue, forKey: "hideTouchWithController") }
     }
     var sixtyFPS: Bool { true }
-    /// Frame rate cap: default 60 FPS (floor 40) or 0 (unlocked up to 120 FPS on ProMotion).
+    /// Khóa cứng khung hình: 60 (đúng 60 FPS) hoặc 120 (đúng 120 FPS trên màn hình ProMotion). Giá trị cũ 0 đọc thành 60.
     var frameRateCap: Int {
         get {
-            if let cap = defaults.object(forKey: "frameRateCap") as? Int, [0, 60].contains(cap) { return cap }
+            if let cap = defaults.object(forKey: "frameRateCap") as? Int, [60, 120].contains(cap) { return cap }
             return 60
         }
         set { defaults.set(newValue, forKey: "frameRateCap") }
     }
-    static func frameRateTitle(_ cap: Int) -> String { cap == 0 ? "Mở khóa tối đa (120 FPS)" : "Khóa cứng 60 FPS" }
+    static func frameRateTitle(_ cap: Int) -> String { cap == 120 ? "Khóa cứng 120 FPS" : "Khóa cứng 60 FPS" }
 
     // Interrupted boots are recorded without silently lowering saved graphics.
     private var bootPending: Bool {
