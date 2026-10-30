@@ -20,6 +20,8 @@ void PGSetSharperUpscaling(int on);
 void PGSetMSR(int enabled, float sharpness, float bloom, int look);
 // Strict frame pacing of the renderer: 60 or 120 frames per second, changes live.
 void PGSetFramePacing(int fps);
+// Sets whether the player is currently driving a vehicle (for -5 FPS lock in vehicles, 80 FPS on foot).
+void PGSetPlayerDriving(int inVehicle);
 #ifdef __cplusplus
 }
 #endif

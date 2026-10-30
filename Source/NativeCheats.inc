@@ -162,6 +162,10 @@ static void pg_native_cheats_action_tick(w2c_game *instance) {
         break;
       }
       case PGCheatCameraMode:
+        atomic_store(&gPreferredViewMode, (int)value == 4 ? 4 : 2);
+        for (int c = 0; c <= 7; c++) {
+          pg_test_call(instance, 0x2a2173e46daecd12ull, 2, (uint64_t[]){(uint32_t)c, (uint32_t)value});
+        }
         PG_FN_CAMERA_PED_MODE(instance, (u32)value);
         PG_FN_CAMERA_VEHICLE_MODE(instance, (u32)value);
         break;

@@ -2515,6 +2515,7 @@ void pg_virtual_pad_apply(w2c_game *instance, uint64_t pad) {
 // (Scripts/prepare_movie_wait.py). The game files have no .bik videos, and a load that never
 // answered froze the game whenever a TV came on. After 2 s the video is marked as failed, as
 // CMovie::LoadedAsyncCb does itself (bit 32 of the flags at +96), and later videos fail at once.
+_Atomic int gPreferredViewMode = 2;
 static _Atomic int videosUnavailable;
 void pg_movie_wait(w2c_game *instance, uint64_t movie) {
   static _Thread_local uint64_t waitingFor;

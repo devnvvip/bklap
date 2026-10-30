@@ -12,6 +12,7 @@ void PGCaptureNativeFrame(const char *name) { PGMetalRendererCapture(name); }
 void PGSetSharperUpscaling(int on) { PGMetalRendererSetUpscaling(on); }
 void PGSetMSR(int enabled, float sharpness, float bloom, int look) { PGMetalRendererSetMSR(enabled, sharpness, bloom, look); }
 void PGSetFramePacing(int fps) { PGMetalRendererSetFramePacing(fps); }
+void PGSetPlayerDriving(int inVehicle) { PGMetalRendererSetPlayerDriving(inVehicle); }
 void PGStartGraphics(void *memory, uint64_t memorySize, uint64_t ring, uint64_t ringSize, uint64_t) {
 	if (!PGMetalRendererAvailable()) { pg_log("The Metal shader library is missing from the app: rebuild with the game's shaders."); return; }
 	PGStartMetalRenderer(memory, memorySize, ring, ringSize);

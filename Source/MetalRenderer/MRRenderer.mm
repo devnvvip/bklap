@@ -331,8 +331,12 @@ static void commit(CommitReason reason, id<CAMetalDrawable> drawable = nil) {
 		if (R->visNext > OCCLUSION_SLOTS - 1024 && !R->activeOcclusion) R->visNext = 0;
 	}
 	id<MTLCommandBuffer> cb = commandBuffer();
-	// Khóa cứng: màn hình không bao giờ nhận hai khung cách nhau ít hơn 1/60 (hoặc 1/120) giây, kể cả khi GPU làm xong sớm.
-	if (drawable) [cb presentDrawable:drawable afterMinimumDuration:1.0 / (double)std::max(gPacingFPS.load(), 1)];
+	// Khóa cứng nghiêm ngặt: Đi bộ 80 FPS, Đi xe giảm đúng 5 FPS (75 FPS), tuyệt đối không giảm hơn.
+	if (drawable) {
+		const int baseFPS = gPacingFPS.load();
+		const int pacingFPS = (baseFPS >= 100) ? 120 : (gPlayerDriving.load() ? 75 : 80);
+		[cb presentDrawable:drawable afterMinimumDuration:1.0 / (double)std::max(pacingFPS, 1)];
+	}
 	uint64_t serial = R->serial++;
 	auto *callbacks = new std::vector<std::function<void()>>();
 	callbacks->swap(R->onComplete);
@@ -2043,6 +2047,10 @@ extern "C" void PGMetalRendererSetMSR(int enabled, float sharpness, float bloom,
 }
 // Frame pacing: 60 or 120 frames per second (the player's strict lock), changes live (the variable is declared above commit()).
 // Frame pacing: khoa cung unlock sieu nghiem ngat fps + 20 (60 -> 80 FPS, 120 -> 120 FPS)
+static std::atomic<bool> gPlayerDriving{false};
+extern "C" void PGMetalRendererSetPlayerDriving(int inVehicle) {
+	gPlayerDriving.store(inVehicle != 0);
+}
 extern "C" void PGMetalRendererSetFramePacing(int fps) {
 	if (fps >= 100) gPacingFPS.store(120);
 	else gPacingFPS.store(80); // Khóa siêu cứng và ổn định nghiêm ngặt +20 FPS (60 + 20 = 80 FPS)
@@ -2159,7 +2167,8 @@ static void present(uint32_t texId) {
 	// Khóa cứng khung hình đúng 60 hoặc đúng 120 FPS theo cài đặt (16.667 ms hoặc 8.333 ms / khung). Ngủ trong kernel,
 	// không quay vòng chờ cả khung như trước (đốt một nhân CPU liên tục, nóng máy và làm đói luồng âm thanh).
 	static double sPacingTarget = 0.0; static int sPacingFPS = 0;
-	const int pacingFPS = gPacingFPS.load();
+	const int baseFPS = gPacingFPS.load();
+	const int pacingFPS = (baseFPS >= 100) ? 120 : (gPlayerDriving.load() ? 75 : 80);
 	const double targetFrameTime = 1.0 / (double)std::max(pacingFPS, 1);
 	if (sPacingFPS != pacingFPS || sPacingTarget <= 0.0 || fabs(now - sPacingTarget) > 0.1) {
 		sPacingFPS = pacingFPS;

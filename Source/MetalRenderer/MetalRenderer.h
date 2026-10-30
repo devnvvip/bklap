@@ -13,6 +13,7 @@ void PGMetalRendererCapture(const char *name);
 void PGMetalRendererSetUpscaling(int on);
 void PGMetalRendererSetMSR(int enabled, float sharpness, float bloom, int look);
 void PGMetalRendererSetFramePacing(int fps);
+void PGMetalRendererSetPlayerDriving(int inVehicle);
 #ifdef __cplusplus
 }
 #endif
