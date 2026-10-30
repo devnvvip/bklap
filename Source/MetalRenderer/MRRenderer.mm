@@ -309,6 +309,7 @@ static id<MTLBlitCommandEncoder> blitEncoder() {
 	return R->blit;
 }
 static std::atomic<int> gPacingFPS{80};
+static std::atomic<bool> gPlayerDriving{false};
 static void storeResult(uint64_t addr, uint64_t value, uint32_t seq);
 enum CommitReason { CPresent, CFence, CReadback, CIdle, CReasons };
 static const char *kCommitNames[CReasons] = {"present", "fence", "readback", "idle queries"};
@@ -2047,7 +2048,6 @@ extern "C" void PGMetalRendererSetMSR(int enabled, float sharpness, float bloom,
 }
 // Frame pacing: 60 or 120 frames per second (the player's strict lock), changes live (the variable is declared above commit()).
 // Frame pacing: khoa cung unlock sieu nghiem ngat fps + 20 (60 -> 80 FPS, 120 -> 120 FPS)
-static std::atomic<bool> gPlayerDriving{false};
 extern "C" void PGMetalRendererSetPlayerDriving(int inVehicle) {
 	gPlayerDriving.store(inVehicle != 0);
 }
