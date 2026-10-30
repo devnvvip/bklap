@@ -15,6 +15,11 @@ int PGTextureRatioPercent(void);
 void PGNoteTextureRatio(int64_t gpuBytes, int64_t gameBytes);
 // Settings › Sharper upscaling: MetalFX scales the picture to the screen's resolution (changes live).
 void PGSetSharperUpscaling(int on);
+// Settings › MSR (Mugoat Super Resolution): MetalFX scaling to the screen plus a sharpening, glow and colour pass.
+// sharpness and bloom 0...1; look 0 original, 1 natural, 2 cinematic, 3 vivid. Changes live.
+void PGSetMSR(int enabled, float sharpness, float bloom, int look);
+// Strict frame pacing of the renderer: 60 or 120 frames per second, changes live.
+void PGSetFramePacing(int fps);
 #ifdef __cplusplus
 }
 #endif
