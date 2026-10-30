@@ -48,6 +48,7 @@ final class SettingsHomeViewController: UITableViewController {
         }, sections: [.language, .mode]))
         if !engineRunning {
             list.append(Category(icon: "viewfinder", title: "Tầm nhìn và texture (4 GB)", summary: { "Extended Distance Scaling · Extended Texture Budget" }, sections: [], page: { StreamingSettingsViewController() }))
+            list.append(Category(icon: "sparkles", title: "Đồ hoạ Project RELOAD", summary: { BundledReload.enabled ? "Đang bật · áp dụng khi vào game" : "Đang tắt · bật để dùng đồ hoạ mod" }, sections: [], page: { BundledReloadViewController() }))
             list.append(Category(icon: "folder", title: AppLanguage.choose("Game files"), summary: {
                 AppLanguage.choose("Where the game is, checking and downloading its files")
             }, sections: [.files]))
