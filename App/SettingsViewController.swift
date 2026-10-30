@@ -348,14 +348,15 @@ final class SettingsViewController: UITableViewController {
                     }
                 } else {
                     content.text = AppLanguage.choose("Frame rate")
-                    content.secondaryText = "Khóa cứng nghiêm ngặt 60 FPS hoặc Mở khóa tối đa 120 FPS trên màn hình ProMotion."
+                    content.secondaryText = "Khóa cứng nghiêm ngặt đúng 60 FPS hoặc đúng 120 FPS trên màn hình ProMotion (iPhone 16 Pro)."
                     let button = UIButton(type: .system)
                     button.setTitle(GameSettings.frameRateTitle(settings.frameRateCap) + " ▾", for: .normal)
                     button.showsMenuAsPrimaryAction = true
                     button.accessibilityLabel = AppLanguage.choose("Frame rate")
-                    button.menu = UIMenu(children: [60, 0].map { cap in
+                    button.menu = UIMenu(children: [60, 120].map { cap in
                         UIAction(title: GameSettings.frameRateTitle(cap), state: cap == settings.frameRateCap ? .on : .off) { [weak self] _ in
                             self?.settings.frameRateCap = cap; self?.reloadFooters(); self?.tableView.reloadData()
+                            NotificationCenter.default.post(name: ProcessInfo.thermalStateDidChangeNotification, object: nil)
                         }
                     })
                     button.sizeToFit()
