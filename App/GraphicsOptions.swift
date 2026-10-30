@@ -189,12 +189,18 @@ enum GraphicsConfiguration {
     /// Pass the chosen settings to the engine. Call before PGStartEngine.
     static func apply(_ settings: GameSettings, screen: CGSize, tv: Bool = false) -> String {
         let preset = settings.graphicsPreset
-        let (width, height) = size(for: preset, renderHeight: settings.renderHeight, screen: screen, matchScreenShape: tv || settings.matchScreenShape)
+        // MSR renders small (720 by default) and MetalFX brings the picture to the screen; a height chosen in Graphics wins.
+        let msr = settings.msrEnabled
+        let chosenHeight = settings.renderHeight > 0 ? settings.renderHeight : (msr ? settings.msrInternalHeight : 0)
+        let (width, height) = size(for: preset, renderHeight: chosenHeight, screen: screen, matchScreenShape: tv || settings.matchScreenShape)
         // The player's own details replace the preset's (GTA-84).
         let overrides = settings.graphicsOverrides
         var options = preset.engineOptions.map { option -> String in
             let name = String(option.dropFirst().prefix { $0 != "=" })
-            return overrides[name].map { "-\(name)=\($0)" } ?? option
+            if let value = overrides[name] { return "-\(name)=\(value)" }
+            // MSR on Ultra and Max: reflections one step lower, the costliest effect for a picture that is rendered small anyway.
+            if msr, option == "-reflectionQuality=2" { return "-reflectionQuality=1" }
+            return option
         }
         // The pinned engine exposes MaxLODScale independently of the ordinary lodScale.
         if let value = StreamingSettings.distanceScale {
@@ -208,6 +214,8 @@ enum GraphicsConfiguration {
         PGSetMemoryCap(Int32(settings.memoryCapMB))
         let enableSharper = settings.sharperUpscaling
         PGSetSharperUpscaling(enableSharper ? 1 : 0)
+        settings.applyMSR()
+        if msr { BundledReload.enableOnce() }
         var pointers = options.map { strdup($0) }
         defer { pointers.forEach { free($0) } }
         pointers.withUnsafeMutableBufferPointer { buffer in
@@ -215,6 +223,6 @@ enum GraphicsConfiguration {
                 PGConfigureEngine($0, UInt32(buffer.count), Int32(width), Int32(height), settings.frameRateCap == 120 ? 0 : 1)
             }
         }
-        return "\(preset.title) \(width)×\(height) at \(GameSettings.frameRateTitle(settings.frameRateCap))" + (own.isEmpty ? "" : ", own settings: " + own.joined(separator: ", "))
+        return "\(preset.title) \(width)×\(height)\(msr ? " MSR" : "") at \(GameSettings.frameRateTitle(settings.frameRateCap))" + (own.isEmpty ? "" : ", own settings: " + own.joined(separator: ", "))
     }
 }
