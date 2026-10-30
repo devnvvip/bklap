@@ -308,6 +308,7 @@ static id<MTLBlitCommandEncoder> blitEncoder() {
 	R->blit = [commandBuffer() blitCommandEncoder];
 	return R->blit;
 }
+static std::atomic<int> gPacingFPS{60};
 static void storeResult(uint64_t addr, uint64_t value, uint32_t seq);
 enum CommitReason { CPresent, CFence, CReadback, CIdle, CReasons };
 static const char *kCommitNames[CReasons] = {"present", "fence", "readback", "idle queries"};
@@ -330,7 +331,8 @@ static void commit(CommitReason reason, id<CAMetalDrawable> drawable = nil) {
 		if (R->visNext > OCCLUSION_SLOTS - 1024 && !R->activeOcclusion) R->visNext = 0;
 	}
 	id<MTLCommandBuffer> cb = commandBuffer();
-	if (drawable) [cb presentDrawable:drawable];
+	// Khóa cứng: màn hình không bao giờ nhận hai khung cách nhau ít hơn 1/60 (hoặc 1/120) giây, kể cả khi GPU làm xong sớm.
+	if (drawable) [cb presentDrawable:drawable afterMinimumDuration:1.0 / (double)std::max(gPacingFPS.load(), 1)];
 	uint64_t serial = R->serial++;
 	auto *callbacks = new std::vector<std::function<void()>>();
 	callbacks->swap(R->onComplete);
@@ -2039,8 +2041,7 @@ extern "C" void PGMetalRendererSetMSR(int enabled, float sharpness, float bloom,
 	gMSRLook.store(std::min(std::max(look, 0), 3));
 	gMSROn.store(enabled != 0);
 }
-// Frame pacing: 60 or 120 frames per second (the player's strict lock), changes live.
-static std::atomic<int> gPacingFPS{60};
+// Frame pacing: 60 or 120 frames per second (the player's strict lock), changes live (the variable is declared above commit()).
 extern "C" void PGMetalRendererSetFramePacing(int fps) { gPacingFPS.store(fps >= 100 ? 120 : 60); }
 #if PG_METALFX
 static struct { id<MTLFXSpatialScaler> scaler; id<MTLTexture> out; uint32_t inW, inH, outW, outH; MTLPixelFormat format; bool unsupported; } FX;
