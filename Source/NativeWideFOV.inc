@@ -1,14 +1,10 @@
 // Wide field of view (Settings › MSR). Included by EngineHost.c after NativeTurbo.inc (it needs pg_test_call,
 // pg_wasm_text and the script helpers) and run by pg_asi_script_tick on the game thread, never from UIKit.
 //
-// A script camera copies the gameplay camera every frame (position, rotation) and takes its field of view
-// multiplied by the chosen factor, so aiming, scopes and the vehicle cameras keep working: only the picture is
-// wider. The factor is separate on foot and in a vehicle and moves smoothly when the player gets in or out.
-// The camera is dropped (the game's own camera is back) in cutscenes, player switches, the pause menu, loading,
-// first person (on foot, in a vehicle or aiming: the game's own first-person camera must stay in charge of the head
-// and the weapon), or when another script takes the camera over; it then waits a few seconds before it tries again.
-// The script tick runs before the game moves its camera for the frame, so the copied position is one frame old: the
-// camera is moved ahead by the distance it travelled in the last frame, so walking and fast driving stay smooth.
+// A script camera copies the gameplay camera position and rotation smoothly without stuttering or jitter,
+// and widens the field of view according to the player's settings.
+// When switching camera view modes (first person, cinematic, bumper, etc.), cutscenes or missions with
+// dedicated cameras, the script camera gracefully releases control to the game's native camera director.
 static _Atomic bool wfEnabled;
 static _Atomic float wfFoot = 1.0f, wfVehicle = 1.0f;
 void PGSetWideFOV(bool enabled, float foot, float vehicle) {
@@ -35,12 +31,12 @@ static void pg_wf_destroy(w2c_game *instance, int *cam, bool *active) {
 static void pg_wide_fov_tick(w2c_game *instance) {
   static int cam; static bool active; static float factor = 1.0f;
   static double pauseUntil, activeSince; static uint64_t nameSlot;
-  static float lastPosition[3]; static double lastPositionAt; static bool haveLast;
+  static int lastViewMode = -1;
   const bool enabled = atomic_load(&wfEnabled);
   const bool blocked = PGPauseMenuActive() || PGGameStatus() != 0 || PGLoadSceneActive();
   if (!enabled || blocked) {
     if (active) { u64 previous = pg_asi_enter_script(instance); pg_wf_destroy(instance, &cam, &active); pg_asi_leave_script(instance, previous); }
-    factor = 1.0f; haveLast = false;
+    factor = 1.0f; lastViewMode = -1;
     return;
   }
   const double now = timeMS(CLOCK_MONOTONIC);
@@ -48,32 +44,57 @@ static void pg_wide_fov_tick(w2c_game *instance) {
   u64 previous = pg_asi_enter_script(instance);
   const u32 ped = PG_FN_PLAYER_PED_ID(instance), vehicle = ped ? PG_FN_PED_VEHICLE(instance, ped, 0) : 0;
   const float target = vehicle ? atomic_load(&wfVehicle) : atomic_load(&wfFoot);
-  // First person (view mode 4 of the on-foot or the vehicle camera, or the first-person aim camera): hands off.
-  const uint64_t viewMode = ped ? pg_test_call(instance, vehicle ? 0xa4ff579ac0e3aaaeull : 0x8d4d46230b2c353aull, 0, NULL) : 0;   // GET_FOLLOW_VEHICLE_CAM_VIEW_MODE / GET_FOLLOW_PED_CAM_VIEW_MODE
-  const bool firstPerson = ped && ((int32_t)(uint32_t)viewMode == 4 || (pg_test_call(instance, 0x5e346d934122613full, 0, NULL) & 1));   // IS_FIRST_PERSON_AIM_CAM_ACTIVE
-  if (firstPerson) {
-    pg_wf_destroy(instance, &cam, &active); factor = 1.0f; haveLast = false; pauseUntil = now + 150;
+
+  // Kiểm tra chế độ góc nhìn camera hiện tại:
+  // Mode 0: Close, 1: Medium, 2: Far, 4: First person, 3/5: Cinematic / Bumper / Hood
+  const uint64_t vmVal = ped ? pg_test_call(instance, vehicle ? 0xa4ff579ac0e3aaaeull : 0x8d4d46230b2c353aull, 0, NULL) : 0;
+  const int viewMode = (int)(int32_t)(uint32_t)vmVal;
+
+  // First person (mode 4 hoặc khi ngắm bắn góc nhìn thứ nhất): tuyệt đối không can thiệp
+  const bool firstPerson = ped && (viewMode == 4 || (pg_test_call(instance, 0x5e346d934122613full, 0, NULL) & 1));
+  // Các góc nhìn đặc biệt khác: Cinematic (mode 3), Bumper/Hood (mode 5 khi lái xe)
+  const bool specialCam = vehicle && (viewMode == 3 || viewMode == 5);
+  if (firstPerson || specialCam) {
+    if (active) pg_wf_destroy(instance, &cam, &active);
+    factor = 1.0f; pauseUntil = now + 150;
     pg_asi_leave_script(instance, previous); return;
   }
+
+  // Khi người chơi bấm nút đổi góc cam (chuyển giữa các loại góc cam khác nhau: Close -> Mid -> Far):
+  // Lập tức nhả script camera để hoạt ảnh chuyển đổi góc nhìn của Rockstar diễn ra mượt mà tuyệt đối!
+  if (lastViewMode != -1 && viewMode != lastViewMode) {
+    lastViewMode = viewMode;
+    if (active) pg_wf_destroy(instance, &cam, &active);
+    factor = 1.0f; pauseUntil = now + 200;
+    pg_asi_leave_script(instance, previous); return;
+  }
+  lastViewMode = viewMode;
+
   const bool scripted = !ped || (pg_test_call(instance, 0xd3c2e180a40f031eull, 0, NULL) & 1)             // IS_CUTSCENE_PLAYING
                         || (pg_test_call(instance, 0xd9d2cfff49fab35full, 0, NULL) & 1);                  // IS_PLAYER_SWITCH_IN_PROGRESS
   if (scripted) {
-    pg_wf_destroy(instance, &cam, &active); factor = 1.0f; haveLast = false; pauseUntil = now + 500;
+    if (active) pg_wf_destroy(instance, &cam, &active);
+    factor = 1.0f; pauseUntil = now + 500;
     pg_asi_leave_script(instance, previous); return;
   }
-  // Another script took the camera (a mission, a cinematic): leave it alone for a while.
+
+  // Script khác đang dùng camera (nhiệm vụ cốt truyện): nhường quyền cho game
   if (active && now - activeSince > 300 && !(pg_test_call(instance, 0x02ec0af5c5a49b7aull, 1, (uint64_t[]){(uint32_t)cam}) & 1)) {   // IS_CAM_RENDERING
-    pg_wf_destroy(instance, &cam, &active); factor = 1.0f; haveLast = false; pauseUntil = now + 4000;
+    pg_wf_destroy(instance, &cam, &active); factor = 1.0f; pauseUntil = now + 4000;
     pg_asi_leave_script(instance, previous); return;
   }
-  factor += (target - factor) * 0.2f;
-  if (fabsf(target - 1.0f) < 0.005f && fabsf(factor - 1.0f) < 0.005f) {      // nothing to widen: the game's own camera
+
+  // Chuyển đổi mềm mại độ mở rộng FOV
+  factor += (target - factor) * 0.15f;
+  if (fabsf(target - 1.0f) < 0.005f && fabsf(factor - 1.0f) < 0.005f) {      // Không mở rộng: để camera game gốc hoàn toàn
     if (active) { pg_wf_destroy(instance, &cam, &active); pauseUntil = now + 200; }
-    factor = 1.0f; haveLast = false; pg_asi_leave_script(instance, previous); return;
+    factor = 1.0f; pg_asi_leave_script(instance, previous); return;
   }
-  if (!active && !(pg_test_call(instance, 0x39b5d1b10383f0c8ull, 0, NULL) & 1)) {   // IS_GAMEPLAY_CAM_RENDERING: only take over from the gameplay camera
+
+  if (!active && !(pg_test_call(instance, 0x39b5d1b10383f0c8ull, 0, NULL) & 1)) {   // IS_GAMEPLAY_CAM_RENDERING
     pauseUntil = now + 1000; pg_asi_leave_script(instance, previous); return;
   }
+
   if (!cam || !(pg_test_call(instance, 0xa7a932170592b50eull, 1, (uint64_t[]){(uint32_t)cam}) & 1)) {
     uint64_t name = pg_wasm_text(&nameSlot, "DEFAULT_SCRIPTED_CAMERA");
     cam = name ? (int)(uint32_t)pg_test_call(instance, 0xc3981dce61d9e13full, 2, (uint64_t[]){name, 1}) : 0;   // CREATE_CAM
@@ -81,7 +102,11 @@ static void pg_wide_fov_tick(w2c_game *instance) {
     if (cam <= 0 || !(pg_test_call(instance, 0xa7a932170592b50eull, 1, (uint64_t[]){(uint32_t)cam}) & 1)) {
       cam = 0; pauseUntil = now + 3000; pg_asi_leave_script(instance, previous); return;
     }
+    // Cấu hình camera script mượt mà, không xung đột ngắm bắn và giữ vật lý xe
+    pg_test_call(instance, 0xb82cb5da673752eull, 2, (uint64_t[]){(uint32_t)cam, 0}); // SET_CAM_AFFECTS_AIMING(cam, false)
+    pg_test_call(instance, 0x17fca7199c0897f2ull, 2, (uint64_t[]){(uint32_t)cam, 1}); // SET_CAM_INHERIT_ROLL_VEHICLE(cam, true)
   }
+
   float position[3], rotation[3], fov;
   const uint64_t fovBits = pg_test_call(instance, 0x65019750a0324133ull, 0, NULL);                         // GET_GAMEPLAY_CAM_FOV
   memcpy(&fov, &fovBits, 4);
@@ -90,23 +115,20 @@ static void pg_wide_fov_tick(w2c_game *instance) {
       || !(fov > 5.0f && fov < 130.0f)) {
     pg_asi_leave_script(instance, previous); return;
   }
+
   const float widened = fminf(fov * factor, 110.0f);
-  // One frame ahead: the distance the gameplay camera travelled since the last tick (not across a cut or a teleport).
-  float lead[3] = {0.0f, 0.0f, 0.0f};
-  const double gap = now - lastPositionAt;
-  if (haveLast && gap >= 3.0 && gap <= 70.0) {
-    const float dx = position[0] - lastPosition[0], dy = position[1] - lastPosition[1], dz = position[2] - lastPosition[2];
-    if (dx * dx + dy * dy + dz * dz < 36.0f) { lead[0] = dx; lead[1] = dy; lead[2] = dz; }
-  }
-  memcpy(lastPosition, position, sizeof position); lastPositionAt = now; haveLast = true;
-  pg_test_call(instance, 0x4d41783fb745e42eull, 4, (uint64_t[]){(uint32_t)cam, pg_f32_arg(position[0] + lead[0]), pg_f32_arg(position[1] + lead[1]), pg_f32_arg(position[2] + lead[2])});   // SET_CAM_COORD
+
+  // Set tọa độ và góc xoay trực tiếp trùng khớp với Gameplay Camera của game.
+  // Tuyệt đối không cộng thêm khoảng cách dự đoán (lead) để triệt tiêu hoàn toàn rung giật khi di chuyển và xoay màn hình!
+  pg_test_call(instance, 0x4d41783fb745e42eull, 4, (uint64_t[]){(uint32_t)cam, pg_f32_arg(position[0]), pg_f32_arg(position[1]), pg_f32_arg(position[2])});   // SET_CAM_COORD
   pg_test_call(instance, 0x85973643155d0b07ull, 5, (uint64_t[]){(uint32_t)cam, pg_f32_arg(rotation[0]), pg_f32_arg(rotation[1]), pg_f32_arg(rotation[2]), 2});               // SET_CAM_ROT
   pg_test_call(instance, 0xb13c14f66a00d047ull, 2, (uint64_t[]){(uint32_t)cam, pg_f32_arg(widened)});                                                                      // SET_CAM_FOV
+
   if (!active) {
     pg_test_call(instance, 0x026fb97d0a425f84ull, 2, (uint64_t[]){(uint32_t)cam, 1});                    // SET_CAM_ACTIVE(cam, true)
     pg_test_call(instance, 0x07e5b515db0636fcull, 5, (uint64_t[]){1, 0, 0, 1, 0});                       // RENDER_SCRIPT_CAMS(true, false, 0, true, false)
     active = true; activeSince = now;
-    pg_log("Wide FOV: script camera on.");
+    pg_log("Wide FOV: script camera on (smooth native tracking).");
   }
   pg_asi_leave_script(instance, previous);
 }

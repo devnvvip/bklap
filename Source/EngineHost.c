@@ -1005,9 +1005,11 @@ void PGClearCameraSwipe(void) {
 }
 static float pg_camera_swipe_axis(float delta, double elapsed) {
   const float velocity = fabsf(delta) / fmaxf(1.f/240.f, fminf(1.f/15.f, (float)elapsed));
-  const float normalized = fminf(1.f, velocity / 1100.f);
-  if (normalized <= 0.025f) return 0;
-  return copysignf(0.245f + 0.755f * powf(normalized, 0.85f), delta);
+  const float normalized = fminf(1.f, velocity / 1000.f);
+  if (normalized <= 0.002f) return 0.0f;
+  // Đường cong mượt liên tục (loại bỏ bước nhảy 0.245f gây nấc giật khi xoay màn hình)
+  const float curve = powf(normalized, 0.85f);
+  return copysignf(fminf(1.0f, curve), delta);
 }
 
 // Virtual pad: packed so the engine thread reads one consistent sample.
@@ -2477,11 +2479,21 @@ void pg_virtual_pad_apply(w2c_game *instance, uint64_t pad) {
   const float dy = (float)atomic_exchange(&pendingCameraSwipeY, 0) / PG_CAMERA_SWIPE_SCALE;
   // TouchControlsView suppresses swipe by gesture role for selection wheels.
   // L1 is also vehicle aim: a button-bit test here would freeze drive-by look.
+  static _Thread_local float smoothLookX = 0.0f, smoothLookY = 0.0f;
   if (dx != 0 || dy != 0) {
+    smoothLookX = pg_camera_swipe_axis(dx, elapsed);
+    smoothLookY = pg_camera_swipe_axis(dy, elapsed);
+  } else {
+    smoothLookX *= 0.5f;
+    smoothLookY *= 0.5f;
+    if (fabsf(smoothLookX) < 0.005f) smoothLookX = 0.0f;
+    if (fabsf(smoothLookY) < 0.005f) smoothLookY = 0.0f;
+  }
+  if (smoothLookX != 0.0f || smoothLookY != 0.0f) {
     const float baseX = ((packed >> 32 & 255) - 127.5f) / 127.5f;
     const float baseY = (127.5f - (packed >> 40 & 255)) / 127.5f;
-    const float lookX = fmaxf(-1, fminf(1, baseX + pg_camera_swipe_axis(dx, elapsed)));
-    const float lookY = fmaxf(-1, fminf(1, baseY + pg_camera_swipe_axis(dy, elapsed)));
+    const float lookX = fmaxf(-1, fminf(1, baseX + smoothLookX));
+    const float lookY = fmaxf(-1, fminf(1, baseY + smoothLookY));
     packed = (packed & ~(0xffffull << 32)) |
       (uint64_t)pg_pad_axis(lookX, false) << 32 |
       (uint64_t)pg_pad_axis(lookY, true) << 40;
