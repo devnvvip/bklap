@@ -53,28 +53,28 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
     private let output = UITextView()
     private let fpsLabel = UILabel()
     private let iosmodsWatermarkLabel = UILabel()
+    /// Seven colours: red, orange, yellow, green, cyan, blue, violet.
     private let rainbowColors: [UIColor] = [
-        UIColor(red: 1.0, green: 0.05, blue: 0.1, alpha: 1.0),   // Đỏ cờ neon
-        UIColor(red: 1.0, green: 0.25, blue: 0.0, alpha: 1.0),   // Đỏ cam
-        UIColor(red: 1.0, green: 0.5, blue: 0.0, alpha: 1.0),    // Cam tươi
-        UIColor(red: 1.0, green: 0.75, blue: 0.0, alpha: 1.0),   // Vàng cam
-        UIColor(red: 1.0, green: 0.95, blue: 0.0, alpha: 1.0),   // Vàng chanh
-        UIColor(red: 0.5, green: 1.0, blue: 0.0, alpha: 1.0),    // Vàng lục
-        UIColor(red: 0.0, green: 1.0, blue: 0.25, alpha: 1.0),   // Lục neon
-        UIColor(red: 0.0, green: 1.0, blue: 0.75, alpha: 1.0),   // Lục lam sáng
-        UIColor(red: 0.0, green: 0.85, blue: 1.0, alpha: 1.0),   // Lam ngọc
-        UIColor(red: 0.0, green: 0.5, blue: 1.0, alpha: 1.0),    // Lam biển
-        UIColor(red: 0.35, green: 0.2, blue: 1.0, alpha: 1.0),   // Lam chàm
-        UIColor(red: 0.65, green: 0.1, blue: 1.0, alpha: 1.0),   // Tím violet
-        UIColor(red: 0.95, green: 0.05, blue: 0.9, alpha: 1.0),  // Tím hồng
-        UIColor(red: 1.0, green: 0.1, blue: 0.45, alpha: 1.0)    // Hồng cánh sen
+        UIColor(red: 1.0, green: 0.12, blue: 0.16, alpha: 1.0),   // đỏ
+        UIColor(red: 1.0, green: 0.55, blue: 0.0, alpha: 1.0),    // cam
+        UIColor(red: 1.0, green: 0.92, blue: 0.0, alpha: 1.0),    // vàng
+        UIColor(red: 0.1, green: 1.0, blue: 0.35, alpha: 1.0),    // lục
+        UIColor(red: 0.0, green: 0.9, blue: 1.0, alpha: 1.0),     // lam ngọc
+        UIColor(red: 0.2, green: 0.45, blue: 1.0, alpha: 1.0),    // lam
+        UIColor(red: 0.75, green: 0.25, blue: 1.0, alpha: 1.0)    // tím
     ]
+    /// Each colour fades into the next while the text breathes (bright, then a little dimmer), 7 colours in a loop.
     private func cycleRainbowWatermark(index: Int) {
         let nextIndex = (index + 1) % rainbowColors.count
-        UIView.transition(with: iosmodsWatermarkLabel, duration: 0.08, options: [.transitionCrossDissolve, .allowUserInteraction], animations: {
+        UIView.transition(with: iosmodsWatermarkLabel, duration: 0.45, options: [.transitionCrossDissolve, .allowUserInteraction, .curveEaseInOut], animations: {
             self.iosmodsWatermarkLabel.textColor = self.rainbowColors[nextIndex]
         }) { [weak self] _ in
             self?.cycleRainbowWatermark(index: nextIndex)
+        }
+        UIView.animate(withDuration: 0.225, delay: 0, options: [.allowUserInteraction, .curveEaseInOut], animations: {
+            self.iosmodsWatermarkLabel.alpha = 0.55
+        }) { [weak self] _ in
+            UIView.animate(withDuration: 0.225, delay: 0, options: [.allowUserInteraction, .curveEaseInOut]) { self?.iosmodsWatermarkLabel.alpha = 1 }
         }
     }
     // Top left, or bottom left while the minimap sits at the top (GTA-131).
@@ -320,13 +320,12 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         view.addSubview(fpsLabel)
 
         iosmodsWatermarkLabel.text = "Made by iosmods"
-        iosmodsWatermarkLabel.font = .systemFont(ofSize: 8.5, weight: .bold)
+        iosmodsWatermarkLabel.font = .systemFont(ofSize: 9.5, weight: .heavy)
         iosmodsWatermarkLabel.textColor = rainbowColors[0]
-        iosmodsWatermarkLabel.shadowColor = UIColor.black.withAlphaComponent(0.9)
-        iosmodsWatermarkLabel.shadowOffset = CGSize(width: 1, height: 1)
-        iosmodsWatermarkLabel.backgroundColor = UIColor.black.withAlphaComponent(0.45)
-        iosmodsWatermarkLabel.layer.cornerRadius = 4
-        iosmodsWatermarkLabel.clipsToBounds = true
+        iosmodsWatermarkLabel.shadowColor = UIColor.black.withAlphaComponent(0.55)
+        iosmodsWatermarkLabel.shadowOffset = CGSize(width: 0.5, height: 0.5)
+        iosmodsWatermarkLabel.backgroundColor = .clear
+        iosmodsWatermarkLabel.clipsToBounds = false
         iosmodsWatermarkLabel.textAlignment = .center
         iosmodsWatermarkLabel.isUserInteractionEnabled = false
         iosmodsWatermarkLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -1335,6 +1334,7 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
             if mission != lastStoryMission { lastStoryMission = mission; appendLog("Story: \(mission.isEmpty ? "no mission running" : "mission \(mission) running")") }
             if replay != lastReplayState { if replay == 1 { appendLog("Story: Mission failed screen") }; lastReplayState = replay }
         }
+        if PGStoryCompletedNewlyDetected() { GameSettings.shared.storyCompleted = true; appendLog("Story: finished.") }
         playStats.health(fps: Double(PGRenderedFramesPerSecond()), thermal: ProcessInfo.processInfo.thermalState.rawValue, mission: story ? String(cString: name) : nil, failedScreen: replay == 1)
         appendLog(String(format: "Health: memory %d MB used, %d MB free · guard stopped streaming growth %llu×, asked to evict %llu× · reads %llu (%.1f MB, avg %.1f ms, slow %llu, errors %llu) · %.0f FPS · thermal %@ · CPU %.2f cores · GPU tổng/frame %.1f ms · streaming %llu waiting (%llu over 10 s), loaded %llu (median %llu ms, 95%% %llu ms), remove calls %llu · at %.0f, %.0f, %.0f",
                          used, free, d[0], d[7], d[1], Double(d[2]) / 1_048_576, avgMS, d[5], d[3], PGRenderedFramesPerSecond(), thermal, cores, gpuMS, stream[0], stream[1], stream[2], stream[3], stream[4], stream[5], position.0, position.1, position.2))
