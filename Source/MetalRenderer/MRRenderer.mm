@@ -478,13 +478,7 @@ static void makeSamplers(State *s) {
 	float minLod = std::max(0.0f, wordFloat(w[11])), maxLod = std::min(1000.0f, std::max(0.0f, wordFloat(w[12])));
 	d.lodMinClamp = minLod; d.lodMaxClamp = std::max(minLod, maxLod);
 	if (filter & 0x80) d.compareFunction = w[6] >= 1 && w[6] <= 8 ? (MTLCompareFunction)(w[6] - 1) : MTLCompareFunctionAlways;
-	if (aniso) {
-		d.magFilter = d.minFilter = MTLSamplerMinMagFilterLinear;
-		d.mipFilter = MTLSamplerMipFilterLinear;
-		d.maxAnisotropy = 16;
-	} else if (d.magFilter == MTLSamplerMinMagFilterLinear && d.minFilter == MTLSamplerMinMagFilterLinear && !(filter & 0x80)) {
-		d.maxAnisotropy = 16;
-	}
+	if (aniso) { d.magFilter = d.minFilter = MTLSamplerMinMagFilterLinear; d.mipFilter = MTLSamplerMipFilterLinear; d.maxAnisotropy = std::max(1u, std::min(16u, w[5])); }
 	s->sampler = [R->device newSamplerStateWithDescriptor:d];
 	d.magFilter = d.minFilter = MTLSamplerMinMagFilterNearest; d.maxAnisotropy = 1;
 	s->samplerNearest = [R->device newSamplerStateWithDescriptor:d];
@@ -1338,8 +1332,7 @@ static void applyDynamicState() {
 			const uint32_t *w = rs->words.data();
 			[R->pass setCullMode:w[1] == 2 ? MTLCullModeFront : w[1] == 3 ? MTLCullModeBack : MTLCullModeNone];
 			[R->pass setFrontFacingWinding:w[2] ? MTLWindingCounterClockwise : MTLWindingClockwise];
-			float db = (float)(int32_t)w[3] * (1.0f / 16777216.0f);
-			[R->pass setDepthBias:db slopeScale:wordFloat(w[5]) clamp:wordFloat(w[4])];
+			[R->pass setDepthBias:(float)(int32_t)w[3] slopeScale:wordFloat(w[5]) clamp:wordFloat(w[4])];
 			[R->pass setDepthClipMode:w[6] ? MTLDepthClipModeClip : MTLDepthClipModeClamp];
 			[R->pass setTriangleFillMode:w[0] == 2 ? MTLTriangleFillModeLines : MTLTriangleFillModeFill];
 		} else {
@@ -2033,7 +2026,7 @@ static void capture(Texture *t, const std::string &name, id<MTLRenderPipelineSta
 
 // Sharper upscaling (GTA-10): instead of the screen stretching the picture, MetalFX's spatial scaler
 // brings it to the screen's own resolution (up to 3 times the render size) with edge-aware sharpening.
-static std::atomic<bool> gUpscale{true};
+static std::atomic<bool> gUpscale{false};
 extern "C" void PGMetalRendererSetUpscaling(int on) { gUpscale.store(on != 0); }
 #if PG_METALFX
 static struct { id<MTLFXSpatialScaler> scaler; id<MTLTexture> out; uint32_t inW, inH, outW, outH; MTLPixelFormat format; bool unsupported; } FX;
@@ -2146,7 +2139,7 @@ static void present(uint32_t texId) {
 	if (!R->worldSent && (R->worldSince || d > 300)) {
 		if (!R->worldSince) R->worldSince = ms;
 		if (R->pendingSkips != R->pendingAtPresent) R->worldClean = 0; else if (!R->worldClean) R->worldClean = ms;
-		if ((R->worldClean && ms - R->worldClean >= 200) || ms - R->worldSince >= 60000) {
+		if ((R->worldClean && ms - R->worldClean >= 1500) || ms - R->worldSince >= 60000) {
 			R->worldSent = true;
 			logf("Metal renderer: world shown after %.1f s of pipeline compiles (%u pipelines made)", (ms - R->worldSince) / 1000, R->pipesMade);
 			pg_log("{\"pct\":100,\"label\":\"Ready\",\"world\":true}");
@@ -2507,7 +2500,6 @@ static bool setup() {
 	R->layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
 	R->layer.framebufferOnly = YES;
 	R->layer.maximumDrawableCount = 3;
-	R->layer.magnificationFilter = kCAFilterNearest;
 	R->queue = [R->device newCommandQueueWithMaxCommandBufferCount:64];
 	R->completion = dispatch_semaphore_create(0);
 	R->float32Filtering = R->device.supports32BitFloatFiltering;
@@ -2523,9 +2515,10 @@ static bool setup() {
 	gASTCBC3 = gASTCBC1 && !(getenv("PG_ASTC_BC3") && atoi(getenv("PG_ASTC_BC3")) == 0);		// on since v1.4.4 (Kevin); PG_ASTC_BC3=0 turns it off
 	// Lite build (the app sets PG_LITE from its Info.plist); PG_LITE_TEXTURES=0 keeps textures whole there.
 	gSkipTopMip = getenv("PG_LITE") && strcmp(getenv("PG_LITE"), "0") && !(getenv("PG_LITE_TEXTURES") && !strcmp(getenv("PG_LITE_TEXTURES"), "0"));
-	// Textures retain full resolution (all mipmap levels) for maximum sharpness.
-	gSkipBigTopMip = 0;
-	{ const char *v = getenv("PG_BIG_MIP_SKIP"); if (v) { long side = atol(v); if (side >= 256 && side <= 8192 && !gNativeBC) gSkipBigTopMip = (uint64_t)side * side; } }
+	// Textures of at least 512×512 texels lose their largest level where BC is decoded, a quarter of their
+	// memory (GTA-122; simulator: GPU textures −16%).
+	// On by default since v1.4.3 at 512×512 (Kevin, 2026-10-20); PG_BIG_MIP_SKIP=0 turns it off, another size changes it.
+	{ const char *v = getenv("PG_BIG_MIP_SKIP"); long side = v ? atol(v) : 512; if (side >= 256 && side <= 8192 && !gNativeBC) gSkipBigTopMip = (uint64_t)side * side; }
 	R->borderColors = [R->device supportsFamily:MTLGPUFamilyApple7];
 	if (!loadShaderLibrary(R->device)) return false;
 	R->zeroBuffer = [R->device newBufferWithLength:65536 options:MTLResourceStorageModeShared];
