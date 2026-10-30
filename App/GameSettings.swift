@@ -245,6 +245,49 @@ final class GameSettings {
         get { defaults.object(forKey: "sharperUpscaling") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "sharperUpscaling"); PGSetSharperUpscaling(newValue ? 1 : 0) }
     }
+    // MSR (Mugoat Super Resolution, Settings › MSR). On by default on the A18 iPhones, whose GPU has room for it.
+    // The game renders small and MetalFX brings it to the screen, then a finishing pass sharpens and grades it.
+    var msrEnabled: Bool {
+        get { defaults.object(forKey: "msrEnabled") as? Bool ?? tier.isA18OrNewer }
+        set { defaults.set(newValue, forKey: "msrEnabled"); applyMSR() }
+    }
+    /// The height the game renders at while MSR is on (read when the game starts); a height chosen in Graphics wins.
+    var msrInternalHeight: Int {
+        get { let saved = defaults.integer(forKey: "msrInternalHeight"); return [540, 720, 900].contains(saved) ? saved : 720 }
+        set { defaults.set([540, 720, 900].contains(newValue) ? newValue : 720, forKey: "msrInternalHeight") }
+    }
+    var msrSharpness: Double {
+        get { defaults.object(forKey: "msrSharpness") as? Double ?? 0.6 }
+        set { defaults.set(min(max(newValue, 0), 1), forKey: "msrSharpness"); applyMSR() }
+    }
+    var msrBloom: Double {
+        get { defaults.object(forKey: "msrBloom") as? Double ?? 0.35 }
+        set { defaults.set(min(max(newValue, 0), 1), forKey: "msrBloom"); applyMSR() }
+    }
+    /// 0 original, 1 natural, 2 cinematic, 3 vivid.
+    var msrLook: Int {
+        get { let saved = defaults.object(forKey: "msrLook") as? Int ?? 2; return min(max(saved, 0), 3) }
+        set { defaults.set(min(max(newValue, 0), 3), forKey: "msrLook"); applyMSR() }
+    }
+    /// Wider field of view on foot and in a vehicle (1.0 = the game's own, 1.5 = half as wide again).
+    var wideFOV: Bool {
+        get { defaults.object(forKey: "wideFOV") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "wideFOV"); applyMSR() }
+    }
+    var fovOnFoot: Double {
+        get { defaults.object(forKey: "fovOnFoot") as? Double ?? 1.15 }
+        set { defaults.set(min(max(newValue, 1), 1.5), forKey: "fovOnFoot"); applyMSR() }
+    }
+    var fovInVehicle: Double {
+        get { defaults.object(forKey: "fovInVehicle") as? Double ?? 1.25 }
+        set { defaults.set(min(max(newValue, 1), 1.5), forKey: "fovInVehicle"); applyMSR() }
+    }
+    /// Hands the MSR, field-of-view and frame-pacing choices to the renderer and the game thread (they change live).
+    func applyMSR() {
+        PGSetMSR(msrEnabled ? 1 : 0, Float(msrSharpness), Float(msrBloom), Int32(msrLook))
+        PGSetWideFOV(wideFOV, Float(fovOnFoot), Float(fovInVehicle))
+        PGSetFramePacing(Int32(frameRateCap))
+    }
     /// This device › Experimental (v1.4.3, on by default): improvements that player logs still have to confirm,
     /// each with a switch to turn it off. Read by the engine and renderer, so they apply when the app starts.
     var smarterTextureLoading: Bool {   // GTA-128: grey ground after long play
@@ -338,7 +381,7 @@ final class GameSettings {
             if let cap = defaults.object(forKey: "frameRateCap") as? Int, [60, 120].contains(cap) { return cap }
             return 60
         }
-        set { defaults.set(newValue, forKey: "frameRateCap") }
+        set { defaults.set(newValue, forKey: "frameRateCap"); PGSetFramePacing(Int32(frameRateCap)) }
     }
     static func frameRateTitle(_ cap: Int) -> String { cap == 120 ? "Khóa cứng 120 FPS" : "Khóa cứng 60 FPS" }
 
