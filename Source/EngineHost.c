@@ -2484,10 +2484,8 @@ void pg_virtual_pad_apply(w2c_game *instance, uint64_t pad) {
     smoothLookX = pg_camera_swipe_axis(dx, elapsed);
     smoothLookY = pg_camera_swipe_axis(dy, elapsed);
   } else {
-    smoothLookX *= 0.5f;
-    smoothLookY *= 0.5f;
-    if (fabsf(smoothLookX) < 0.005f) smoothLookX = 0.0f;
-    if (fabsf(smoothLookY) < 0.005f) smoothLookY = 0.0f;
+    smoothLookX = 0.0f;
+    smoothLookY = 0.0f;
   }
   if (smoothLookX != 0.0f || smoothLookY != 0.0f) {
     const float baseX = ((packed >> 32 & 255) - 127.5f) / 127.5f;

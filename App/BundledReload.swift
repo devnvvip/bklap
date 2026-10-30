@@ -157,8 +157,8 @@ final class BundledReloadViewController: UIViewController {
 
     private func frameCard() -> UIView {
         let rows: [UIView] = [
-            segmentRow("Khoá cứng FPS", items: ["60 FPS", "120 FPS"], selected: settings.frameRateCap == 120 ? 1 : 0,
-                       note: "Nhịp khung hình giữ đúng 60 hoặc 120, đổi được ngay khi đang chơi.") { [weak self] index in
+            segmentRow("Khoá cứng FPS", items: ["80 FPS (+20)", "120 FPS"], selected: settings.frameRateCap == 120 ? 1 : 0,
+                       note: "Khóa siêu cứng +20 FPS (80 FPS) tiết kiệm CPU chống nóng máy trên chip A18 iPhone 16 Pro, hoặc 120 FPS ProMotion.") { [weak self] index in
                 self?.settings.frameRateCap = index == 1 ? 120 : 60
                 NotificationCenter.default.post(name: ProcessInfo.thermalStateDidChangeNotification, object: nil)
             },

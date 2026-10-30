@@ -2045,7 +2045,7 @@ extern "C" void PGMetalRendererSetMSR(int enabled, float sharpness, float bloom,
 // Frame pacing: khoa cung unlock sieu nghiem ngat fps + 20 (60 -> 80 FPS, 120 -> 120 FPS)
 extern "C" void PGMetalRendererSetFramePacing(int fps) {
 	if (fps >= 100) gPacingFPS.store(120);
-	else gPacingFPS.store((fps > 0 ? fps : 60) + 20);
+	else gPacingFPS.store(80); // Khóa siêu cứng và ổn định nghiêm ngặt +20 FPS (60 + 20 = 80 FPS)
 }
 #if PG_METALFX
 static struct { id<MTLFXSpatialScaler> scaler; id<MTLTexture> out; uint32_t inW, inH, outW, outH; MTLPixelFormat format; bool unsupported; } FX;
@@ -2088,7 +2088,7 @@ static void pacingSleepUntil(double target) {
 	static mach_timebase_info_data_t timebase;
 	if (!timebase.denom) mach_timebase_info(&timebase);
 	double remaining = target - CACurrentMediaTime();
-	if (remaining > 0.0005) {
+	if (remaining > 0.0002) {
 		mach_wait_until(mach_absolute_time() + (uint64_t)(remaining * 1e9 * timebase.denom / timebase.numer));
 	}
 }
@@ -2161,11 +2161,13 @@ static void present(uint32_t texId) {
 	static double sPacingTarget = 0.0; static int sPacingFPS = 0;
 	const int pacingFPS = gPacingFPS.load();
 	const double targetFrameTime = 1.0 / (double)std::max(pacingFPS, 1);
-	if (sPacingFPS != pacingFPS) { sPacingFPS = pacingFPS; sPacingTarget = 0.0; }
-	if (sPacingTarget <= 0.0 || now >= sPacingTarget) {
+	if (sPacingFPS != pacingFPS || sPacingTarget <= 0.0 || fabs(now - sPacingTarget) > 0.1) {
+		sPacingFPS = pacingFPS;
 		sPacingTarget = now + targetFrameTime;
 	} else {
-		pacingSleepUntil(sPacingTarget);
+		if (sPacingTarget > now) {
+			pacingSleepUntil(sPacingTarget);
+		}
 		sPacingTarget += targetFrameTime;
 	}
 	now = CACurrentMediaTime();

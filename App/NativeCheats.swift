@@ -15,9 +15,9 @@ struct NativeCheatGroup {
     var toggle: PGCheatSwitch? = nil
 
     static let all: [NativeCheatGroup] = [
-        .init(title: "Góc nhìn thứ nhất", detail: "Dùng camera native của game cho đi bộ và trong xe. Không chạy DLL/.NET; chưa mô phỏng đầy đủ quán tính/horizon lock của camera mod PC. Chỉ áp dụng một lần, không ép camera cutscene.", actions: [
-            .init(title: "Bật góc nhìn thứ nhất", command: PGCheatCameraMode, value: 4),
-            .init(title: "Về góc nhìn thứ ba", command: PGCheatCameraMode, value: 1),
+        .init(title: "Góc nhìn thứ nhất", detail: "Dùng camera buồng lái native chân thật như GTA V PC: thấy 2 tay lái trên vô lăng cho tất cả các loại xe, không che khuất người, mượt mà tuyệt đối.", actions: [
+            .init(title: "Bật góc nhìn thứ nhất (Cockpit/2 tay lái)", command: PGCheatCameraMode, value: 4),
+            .init(title: "Về góc nhìn thứ ba (Góc rộng)", command: PGCheatCameraMode, value: 2),
         ]),
         .init(title: "God mode", detail: "Nothing can hurt you until you switch it off. Off again when the app restarts.",
               toggle: PGCheatGodMode),

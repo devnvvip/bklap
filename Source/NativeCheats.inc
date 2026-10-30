@@ -275,7 +275,7 @@ static void pg_vehicle_god_mod_tick(w2c_game *instance) {
   }
 
   // Tăng tốc độ chạy cho tất cả các loại xe (nhanh và mạnh mẽ hơn)
-  pg_test_call(instance, 0xb59e4bd37ae292dbull, 2, (uint64_t[]){vehicle, pg_f32_arg(2.5f)}); // SET_VEHICLE_CHEAT_POWER_INCREASE: 2.5x torque
+  pg_test_call(instance, 0xb59e4bd37ae292dbull, 2, (uint64_t[]){vehicle, pg_f32_arg(1.5f)}); // SET_VEHICLE_CHEAT_POWER_INCREASE: 1.5x torque
   pg_test_call(instance, 0x93a3996368c94158ull, 2, (uint64_t[]){vehicle, pg_f32_arg(1.4f)}); // MODIFY_VEHICLE_TOP_SPEED: +40% top speed
 
   // Tuyệt đối không bao giờ bị ngã hay văng ra khỏi xe (thắt dây an toàn, không rơi xe máy, không ragdoll)
