@@ -2372,6 +2372,7 @@ static uint64_t pg_wasm_text(uint64_t *slot, const char *text) {
   return *slot;
 }
 #include "NativeTurbo.inc"
+#include "NativeWideFOV.inc"
 static void pg_trackify_tick(w2c_game *instance) {
   static double lastData, lastPing; static bool wasOpen;
   if (PGGameStatus() & 16) return;
@@ -2438,6 +2439,7 @@ void pg_asi_script_tick(w2c_game *instance, u64 thread) {
   pg_cheats_menu_tick(instance);
   pg_sound_mod_tick(instance);
   pg_turbo_tick(instance);
+  pg_wide_fov_tick(instance);
   pg_trackify_tick(instance);
 #if TARGET_OS_SIMULATOR
   pg_debug_tick(instance, true);
@@ -2812,6 +2814,9 @@ int32_t PGLastInputDevice(void) {
 
 void PGFillAudio(float *left, float *right, uint32_t count) {
   memset(left, 0, count * sizeof(float)); memset(right, 0, count * sizeof(float));
+  // Last samples handed to the speaker. If the game has not produced enough yet (a slow frame), the sound fades
+  // out from here instead of cutting to silence, which clicked and made engine loops drop out.
+  static float lastLeft, lastRight;
   uint64_t ring = atomic_load(&audioRing);
   if (!ring) return;
   uint32_t capacity = atomic_load(&audioCapacity);
@@ -2827,6 +2832,8 @@ void PGFillAudio(float *left, float *right, uint32_t count) {
   }
   atomic_store(header + 1, read + take);
   atomic_fetch_add(header + 3, 1);
+  if (take) { lastLeft = left[take - 1]; lastRight = right[take - 1]; }
+  for (uint32_t i = take; i < count; i++) { lastLeft *= 0.9965f; lastRight *= 0.9965f; left[i] = lastLeft; right[i] = lastRight; }
 }
 
 static char *configuredQuality[32];static unsigned configuredQualityCount;
