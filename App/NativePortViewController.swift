@@ -445,11 +445,7 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         displayLink = CADisplayLink(target: self, selector: #selector(pollController))
         // Khóa cứng nghiêm ngặt 60 FPS hoặc unlock cứng tối đa 120 FPS trên ProMotion
         let top = Float(UIScreen.main.maximumFramesPerSecond)
-        if GameSettings.shared.frameRateCap == 0 {
-            displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: top, preferred: top)
-        } else {
-            displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
-        }
+        displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: top, preferred: top)
         displayLink?.add(to: .main, forMode: .common)
         #if targetEnvironment(simulator)
         DebugChannel.shared.start(self)

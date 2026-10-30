@@ -2118,17 +2118,6 @@ static void present(uint32_t texId) {
 	f.lastSerial = R->serial - 1;
 	R->presents++;
 	double now = CACurrentMediaTime();
-	static double sLastPresentTime = 0.0;
-	if (sLastPresentTime > 0.0) {
-		double elapsed = now - sLastPresentTime;
-		const double kTargetFrameTime = 1.0 / 60.0; // Khoa cung 60.0 FPS
-		if (elapsed < kTargetFrameTime) {
-			double remain = kTargetFrameTime - elapsed;
-			usleep((useconds_t)(remain * 1000000.0));
-			now = CACurrentMediaTime();
-		}
-	}
-	sLastPresentTime = now;
 	if (R->statPresentAt) { double gap = (now - R->statPresentAt) * 1000; if (gap > 50) R->longFrames++; if (gap > R->worstFrameMs) R->worstFrameMs = gap; }
 	R->statPresentAt = now;
 	R->lastPresent.store(now);
@@ -2599,6 +2588,9 @@ extern "C" void PGStartMetalRenderer(void *memory, uint64_t memorySize, uint64_t
 	R = new Renderer();
 	R->mem = (uint8_t *)memory; R->memSize = memorySize; R->ring = ring; R->ringSize = (uint32_t)ringSize;
 	R->layer = pendingLayer;
+	if (R->layer) {
+		R->layer.maximumDrawableCount = 3;
+	}
 	pg_log("Connecting game graphics commands to the native Metal renderer.");
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
