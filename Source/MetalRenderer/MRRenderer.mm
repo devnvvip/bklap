@@ -2078,14 +2078,15 @@ static id<MTLTexture> upscaled(Texture *) {
 }
 #endif
 
-// Sleeps until `target` (CACurrentMediaTime seconds) without burning a core: the thread sleeps in the kernel and only
-// the last quarter millisecond is spent looping, so the frame still lands on its beat.
+// Sleeps until `target` (CACurrentMediaTime seconds) without burning a core: the thread sleeps in the kernel
+// directly via mach_wait_until, eliminating busy-loops to save maximum CPU and battery on Apple Silicon (A18).
 static void pacingSleepUntil(double target) {
 	static mach_timebase_info_data_t timebase;
 	if (!timebase.denom) mach_timebase_info(&timebase);
-	double remaining = (target - 0.00025) - CACurrentMediaTime();
-	if (remaining > 0) mach_wait_until(mach_absolute_time() + (uint64_t)(remaining * 1e9 * timebase.denom / timebase.numer));
-	while (CACurrentMediaTime() < target) { }
+	double remaining = target - CACurrentMediaTime();
+	if (remaining > 0.0005) {
+		mach_wait_until(mach_absolute_time() + (uint64_t)(remaining * 1e9 * timebase.denom / timebase.numer));
+	}
 }
 
 static void present(uint32_t texId) {
@@ -2155,14 +2156,13 @@ static void present(uint32_t texId) {
 	// không quay vòng chờ cả khung như trước (đốt một nhân CPU liên tục, nóng máy và làm đói luồng âm thanh).
 	static double sPacingTarget = 0.0; static int sPacingFPS = 0;
 	const int pacingFPS = gPacingFPS.load();
-	const double targetFrameTime = 1.0 / pacingFPS;
+	const double targetFrameTime = 1.0 / (double)std::max(pacingFPS, 1);
 	if (sPacingFPS != pacingFPS) { sPacingFPS = pacingFPS; sPacingTarget = 0.0; }
-	if (sPacingTarget <= 0.0) {
-		sPacingTarget = now;
+	if (sPacingTarget <= 0.0 || now >= sPacingTarget) {
+		sPacingTarget = now + targetFrameTime;
 	} else {
+		pacingSleepUntil(sPacingTarget);
 		sPacingTarget += targetFrameTime;
-		if (now > sPacingTarget + targetFrameTime * 2.0) sPacingTarget = now;
-		else pacingSleepUntil(sPacingTarget);
 	}
 	now = CACurrentMediaTime();
 	if (R->statPresentAt) { double gap = (now - R->statPresentAt) * 1000; if (gap > 50) R->longFrames++; if (gap > R->worstFrameMs) R->worstFrameMs = gap; }

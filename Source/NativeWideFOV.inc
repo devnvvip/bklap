@@ -32,6 +32,7 @@ static void pg_wide_fov_tick(w2c_game *instance) {
   static int cam; static bool active; static float factor = 1.0f;
   static double pauseUntil, activeSince; static uint64_t nameSlot;
   static int lastViewMode = -1;
+  static double lastTickTime = 0.0;
   const bool enabled = atomic_load(&wfEnabled);
   const bool blocked = PGPauseMenuActive() || PGGameStatus() != 0 || PGLoadSceneActive();
   if (!enabled || blocked) {
@@ -60,12 +61,12 @@ static void pg_wide_fov_tick(w2c_game *instance) {
     pg_asi_leave_script(instance, previous); return;
   }
 
-  // Khi người chơi bấm nút đổi góc cam (chuyển giữa các loại góc cam khác nhau: Close -> Mid -> Far):
-  // Lập tức nhả script camera để hoạt ảnh chuyển đổi góc nhìn của Rockstar diễn ra mượt mà tuyệt đối!
+  // Khi người chơi bấm nút đổi góc cam (Close -> Mid -> Far):
+  // Nhả script camera 800ms để hoạt ảnh chuyển đổi góc nhìn của Rockstar diễn ra hoàn toàn mượt mà tự nhiên, không giật nảy!
   if (lastViewMode != -1 && viewMode != lastViewMode) {
     lastViewMode = viewMode;
     if (active) pg_wf_destroy(instance, &cam, &active);
-    factor = 1.0f; pauseUntil = now + 200;
+    factor = 1.0f; pauseUntil = now + 800;
     pg_asi_leave_script(instance, previous); return;
   }
   lastViewMode = viewMode;
@@ -85,7 +86,7 @@ static void pg_wide_fov_tick(w2c_game *instance) {
   }
 
   // Chuyển đổi mềm mại độ mở rộng FOV
-  factor += (target - factor) * 0.15f;
+  factor += (target - factor) * 0.1f;
   if (fabsf(target - 1.0f) < 0.005f && fabsf(factor - 1.0f) < 0.005f) {      // Không mở rộng: để camera game gốc hoàn toàn
     if (active) { pg_wf_destroy(instance, &cam, &active); pauseUntil = now + 200; }
     factor = 1.0f; pg_asi_leave_script(instance, previous); return;
@@ -102,9 +103,17 @@ static void pg_wide_fov_tick(w2c_game *instance) {
     if (cam <= 0 || !(pg_test_call(instance, 0xa7a932170592b50eull, 1, (uint64_t[]){(uint32_t)cam}) & 1)) {
       cam = 0; pauseUntil = now + 3000; pg_asi_leave_script(instance, previous); return;
     }
-    // Cấu hình camera script mượt mà, không xung đột ngắm bắn và giữ vật lý xe
+    // Cấu hình camera script mượt mà: không ngắm bắn xung đột và KHÔNG kế thừa roll xe để chống rung lắc khung hình
     pg_test_call(instance, 0xb82cb5da673752eull, 2, (uint64_t[]){(uint32_t)cam, 0}); // SET_CAM_AFFECTS_AIMING(cam, false)
-    pg_test_call(instance, 0x17fca7199c0897f2ull, 2, (uint64_t[]){(uint32_t)cam, 1}); // SET_CAM_INHERIT_ROLL_VEHICLE(cam, true)
+    pg_test_call(instance, 0x17fca7199c0897f2ull, 2, (uint64_t[]){(uint32_t)cam, 0}); // SET_CAM_INHERIT_ROLL_VEHICLE(cam, false)
+  }
+
+  // Triệt tiêu hoàn toàn hiệu ứng rung giật tốc độ cao của xe do game Rockstar tạo ra
+  pg_test_call(instance, 0x0ef93e9f3d08c178ull, 1, (uint64_t[]){1}); // STOP_GAMEPLAY_CAM_SHAKING(true)
+  pg_test_call(instance, 0xa87e00932db4d85dull, 1, (uint64_t[]){pg_f32_arg(0.0f)}); // SET_GAMEPLAY_CAM_SHAKE_AMPLITUDE(0.0f)
+  if (cam) {
+    pg_test_call(instance, 0xbdecf64367884ac3ull, 2, (uint64_t[]){(uint32_t)cam, 1}); // STOP_CAM_SHAKING(cam, true)
+    pg_test_call(instance, 0xd93db43b82bc0d00ull, 2, (uint64_t[]){(uint32_t)cam, pg_f32_arg(0.0f)}); // SET_CAM_SHAKE_AMPLITUDE(cam, 0.0f)
   }
 
   float position[3], rotation[3], fov;
@@ -116,11 +125,28 @@ static void pg_wide_fov_tick(w2c_game *instance) {
     pg_asi_leave_script(instance, previous); return;
   }
 
+  // Bù trễ vật lý 1 frame của xe khi đang chạy tốc độ cao:
+  // Lấy vector vận tốc thực tế của xe từ physics engine (GET_ENTITY_VELOCITY 0x4805d2b1d8cf94a9ull).
+  // Vì lấy trực tiếp vận tốc vật lý của xe chứ không lấy hiệu tọa độ camera, nên vuốt xoay màn hình
+  // không bị giật hay nảy tiếp tuyến, đồng thời camera và xe luôn bám dính nhau siêu mượt!
+  float finalX = position[0];
+  float finalY = position[1];
+  float finalZ = position[2];
+  if (vehicle) {
+    float vel[3] = {0, 0, 0};
+    if (pg_wf_vector(instance, 0x4805d2b1d8cf94a9ull, 1, (uint64_t[]){vehicle}, vel)) {
+      float dt = (lastTickTime > 0.0) ? (float)((now - lastTickTime) * 0.001) : (1.0f / 60.0f);
+      if (dt <= 0.0f || dt > 0.05f) dt = 1.0f / 60.0f;
+      finalX += vel[0] * dt;
+      finalY += vel[1] * dt;
+      finalZ += fminf(fmaxf(vel[2] * dt, -0.04f), 0.04f);
+    }
+  }
+  lastTickTime = now;
+
   const float widened = fminf(fov * factor, 110.0f);
 
-  // Set tọa độ và góc xoay trực tiếp trùng khớp với Gameplay Camera của game.
-  // Tuyệt đối không cộng thêm khoảng cách dự đoán (lead) để triệt tiêu hoàn toàn rung giật khi di chuyển và xoay màn hình!
-  pg_test_call(instance, 0x4d41783fb745e42eull, 4, (uint64_t[]){(uint32_t)cam, pg_f32_arg(position[0]), pg_f32_arg(position[1]), pg_f32_arg(position[2])});   // SET_CAM_COORD
+  pg_test_call(instance, 0x4d41783fb745e42eull, 4, (uint64_t[]){(uint32_t)cam, pg_f32_arg(finalX), pg_f32_arg(finalY), pg_f32_arg(finalZ)});   // SET_CAM_COORD
   pg_test_call(instance, 0x85973643155d0b07ull, 5, (uint64_t[]){(uint32_t)cam, pg_f32_arg(rotation[0]), pg_f32_arg(rotation[1]), pg_f32_arg(rotation[2]), 2});               // SET_CAM_ROT
   pg_test_call(instance, 0xb13c14f66a00d047ull, 2, (uint64_t[]){(uint32_t)cam, pg_f32_arg(widened)});                                                                      // SET_CAM_FOV
 
@@ -128,7 +154,7 @@ static void pg_wide_fov_tick(w2c_game *instance) {
     pg_test_call(instance, 0x026fb97d0a425f84ull, 2, (uint64_t[]){(uint32_t)cam, 1});                    // SET_CAM_ACTIVE(cam, true)
     pg_test_call(instance, 0x07e5b515db0636fcull, 5, (uint64_t[]){1, 0, 0, 1, 0});                       // RENDER_SCRIPT_CAMS(true, false, 0, true, false)
     active = true; activeSince = now;
-    pg_log("Wide FOV: script camera on (smooth native tracking).");
+    pg_log("Wide FOV: script camera active (smooth velocity tracking, zero jitter).");
   }
   pg_asi_leave_script(instance, previous);
 }
