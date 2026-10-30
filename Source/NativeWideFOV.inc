@@ -15,6 +15,7 @@ static _Atomic bool wfEnabled;
 static _Atomic float wfFoot = 1.0f, wfVehicle = 1.0f;
 // gPreferredViewMode is defined in EngineHost.c and declared in HostInternal.h
 
+void PGSetPlayerDriving(int inVehicle);
 void PGSetWideFOV(bool enabled, float foot, float vehicle) {
   foot = isfinite(foot) ? fminf(fmaxf(foot, 1.0f), 1.6f) : 1.0f;
   vehicle = isfinite(vehicle) ? fminf(fmaxf(vehicle, 1.0f), 1.6f) : 1.0f;

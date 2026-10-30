@@ -12,6 +12,7 @@ struct w2c_env {
 struct w2c_wasi__snapshot__preview1 { struct w2c_env *env; };
 void pg_log(const char *message);
 extern _Atomic int gPreferredViewMode;
+void PGSetPlayerDriving(int inVehicle);
 // Mods inside archives (GTA-69): a file in Mods at <archive>.rpf/<path inside> is served past the archive's
 // real end; when the engine opens that archive, EngineHost points the entry there (pg_packfile_mounted).
 typedef struct { const char *inner; uint64_t offset, length; uint32_t low, high; int resource; } PGModPiece;
