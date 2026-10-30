@@ -2033,7 +2033,7 @@ static void capture(Texture *t, const std::string &name, id<MTLRenderPipelineSta
 
 // Sharper upscaling (GTA-10): instead of the screen stretching the picture, MetalFX's spatial scaler
 // brings it to the screen's own resolution (up to 3 times the render size) with edge-aware sharpening.
-static std::atomic<bool> gUpscale{false};
+static std::atomic<bool> gUpscale{true};
 extern "C" void PGMetalRendererSetUpscaling(int on) { gUpscale.store(on != 0); }
 #if PG_METALFX
 static struct { id<MTLFXSpatialScaler> scaler; id<MTLTexture> out; uint32_t inW, inH, outW, outH; MTLPixelFormat format; bool unsupported; } FX;
@@ -2118,6 +2118,22 @@ static void present(uint32_t texId) {
 	f.lastSerial = R->serial - 1;
 	R->presents++;
 	double now = CACurrentMediaTime();
+	// Khóa cứng nghiêm ngặt 60.0 FPS mượt mà tuyệt đối (16.666 ms / frame)
+	static double sPacingTarget = 0.0;
+	const double targetFrameTime = 1.0 / 60.0;
+	if (sPacingTarget <= 0.0) {
+		sPacingTarget = now;
+	} else {
+		sPacingTarget += targetFrameTime;
+		if (now > sPacingTarget + targetFrameTime * 2.0) sPacingTarget = now;
+		while (CACurrentMediaTime() < sPacingTarget - 0.0006) {
+			usleep(300);
+		}
+		while (CACurrentMediaTime() < sPacingTarget) {
+			// microsecond precision spin-wait
+		}
+	}
+	now = CACurrentMediaTime();
 	if (R->statPresentAt) { double gap = (now - R->statPresentAt) * 1000; if (gap > 50) R->longFrames++; if (gap > R->worstFrameMs) R->worstFrameMs = gap; }
 	R->statPresentAt = now;
 	R->lastPresent.store(now);
@@ -2491,6 +2507,7 @@ static bool setup() {
 	R->layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
 	R->layer.framebufferOnly = YES;
 	R->layer.maximumDrawableCount = 3;
+	R->layer.magnificationFilter = kCAFilterNearest;
 	R->queue = [R->device newCommandQueueWithMaxCommandBufferCount:64];
 	R->completion = dispatch_semaphore_create(0);
 	R->float32Filtering = R->device.supports32BitFloatFiltering;

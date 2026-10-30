@@ -187,23 +187,46 @@ static void pg_native_cheats_action_tick(w2c_game *instance) {
   pthread_mutex_unlock(&cheatMenuLock);
 }
 
+static void pg_clear_all_screen_blur(w2c_game *instance) {
+  if (!instance) return;
+  u64 previous = pg_asi_enter_script(instance);
+  // Triệt tiêu triệt để mọi hiệu ứng làm mờ màn hình của game (transition blur, screenblur fade, animpostfx, DoF)
+  pg_test_call(instance, 0xde81239437e8c5a8ull, 0, NULL); // DISABLE_SCREENBLUR_FADE
+  pg_test_call(instance, 0xefacc8aef94430d5ull, 1, (uint64_t[]){pg_f32_arg(0.0f)}); // TRIGGER_SCREENBLUR_FADE_OUT(0.0f)
+  pg_test_call(instance, 0xb4eddc19532bfb85ull, 0, NULL); // ANIMPOSTFX_STOP_ALL
+  pg_test_call(instance, 0xa14aa9fb29ba73a6ull, 1, (uint64_t[]){0}); // SET_USE_HI_DOF(0)
+  pg_test_call(instance, 0x487a82c650eb7799ull, 1, (uint64_t[]){pg_f32_arg(0.0f)}); // SET_GAMEPLAY_CAM_MOTION_BLUR_SCALING_THIS_UPDATE(0.0f)
+  pg_test_call(instance, 0x0fb7838d5017bad4ull, 0, NULL); // CLEAR_TIMECYCLE_MODIFIER
+  pg_test_call(instance, 0x92ccc44dae30737full, 0, NULL); // CLEAR_EXTRA_TIMECYCLE_MODIFIER
+  pg_test_call(instance, 0xd4e2c07e52d70728ull, 1, (uint64_t[]){0}); // DO_SCREEN_FADE_IN(0)
+  pg_asi_leave_script(instance, previous);
+}
+
 static void pg_vehicle_god_mod_tick(w2c_game *instance) {
   if (PGPauseMenuActive() || PGGameStatus() != 0 || PGLoadSceneActive()) return;
   u32 ped = PG_FN_PLAYER_PED_ID(instance);
   if (!ped) return;
-  u32 vehicle = PG_FN_PED_VEHICLE(instance, ped, 0);
-  if (!vehicle) return;
 
   u64 previous = pg_asi_enter_script(instance);
-  u32 player = PG_FN_PLAYER_ID(instance);
-  if (player < 32) {
-    PG_FN_SET_PLAYER_INVINCIBLE(instance, player, 1);
+
+  // Bất tử cho người chơi trên thực thể ped (không dùng SET_PLAYER_INVINCIBLE để giữ nguyên cảnh sát truy nã)
+  pg_test_call(instance, 0x3882114bde571ad4ull, 2, (uint64_t[]){ped, 1}); // SET_ENTITY_INVINCIBLE: ped
+  pg_test_call(instance, 0xfaee099c6f890bb8ull, 9, (uint64_t[]){ped, 1, 1, 1, 1, 1, 1, 1, 1}); // SET_ENTITY_PROOFS: ped
+  pg_test_call(instance, 0x6b76dc1f3ae6e6a3ull, 3, (uint64_t[]){ped, 200, 0}); // SET_ENTITY_HEALTH: 200
+
+  u32 vehicle = PG_FN_PED_VEHICLE(instance, ped, 0);
+  if (!vehicle) {
+    pg_asi_leave_script(instance, previous);
+    return;
   }
-  // Bất tử cho người chơi và xe, không bao giờ chết hay nổ
+
+  u32 player = PG_FN_PLAYER_ID(instance);
+
+  // Bất tử cho xe, không bao giờ hỏng hay nổ
   PG_FN_VEHICLE_ENGINE_HEALTH(instance, vehicle, 1000.f);
   PG_FN_REPAIR_VEHICLE(instance, vehicle);
-  pg_test_call(instance, 0x3882114bde571ad4ull, 2, (uint64_t[]){vehicle, 1}); // SET_ENTITY_INVINCIBLE
-  pg_test_call(instance, 0xfaee099c6f890bb8ull, 9, (uint64_t[]){vehicle, 1, 1, 1, 1, 1, 1, 1, 1}); // SET_ENTITY_PROOFS
+  pg_test_call(instance, 0x3882114bde571ad4ull, 2, (uint64_t[]){vehicle, 1}); // SET_ENTITY_INVINCIBLE: vehicle
+  pg_test_call(instance, 0xfaee099c6f890bb8ull, 9, (uint64_t[]){vehicle, 1, 1, 1, 1, 1, 1, 1, 1}); // SET_ENTITY_PROOFS: vehicle
 
   // Tăng tốc độ chạy cho tất cả các loại xe (nhanh và mạnh mẽ hơn)
   pg_test_call(instance, 0xb59e4bd37ae292dbull, 2, (uint64_t[]){vehicle, pg_f32_arg(2.5f)}); // SET_VEHICLE_CHEAT_POWER_INCREASE: 2.5x torque
@@ -214,7 +237,7 @@ static void pg_vehicle_god_mod_tick(w2c_game *instance) {
   pg_test_call(instance, 0xb282749d5e028163ull, 2, (uint64_t[]){ped, 0}); // SET_PED_CAN_BE_KNOCKED_OFF_BIKE: 0
   pg_test_call(instance, 0xb128377056a54e2aull, 2, (uint64_t[]){ped, 0}); // SET_PED_CAN_RAGDOLL: 0
 
-  // Chuc nang chong lot map: neu do cao z < -40.0f thi dua xe len mat duong an toan
+  // Chức năng chống lọt map: nếu độ cao z < -40.0f thì đưa xe lên mặt đường an toàn
   uint64_t vAddr = PG_FN_TURBO_ENTITY_ADDRESS(instance, vehicle);
   if (vAddr) {
     const float *pos = pg_pointer(&env, vAddr + 144, 12);
@@ -229,30 +252,42 @@ static void pg_vehicle_god_mod_tick(w2c_game *instance) {
     }
   }
 
-  // Chuc nang tu lat xe neu bi lat ngua noc xe xuong dat
-  int stuckOnRoof = (int)(pg_test_call(instance, 0xb497f06b288dcfdfull, 1, (uint64_t[]){vehicle}) & 1); // IS_VEHICLE_STUCK_ON_ROOF
-  if (stuckOnRoof) {
-    pg_test_call(instance, 0x49733e92263139d1ull, 1, (uint64_t[]){vehicle}); // SET_VEHICLE_ON_GROUND_PROPERLY
-  }
-
-  // Quan ly trang thai tren khong: chong nay / chong bay lai khi tiep dat
+  // Quản lý trạng thái trên không: chống nảy / chống bay lại liên tục khi tiếp đất
   static float lastSpeed = 0.0f;
   static double lastActionTime = 0.0;
   static double lastAirTime = 0.0;
+  static double landedTime = 0.0;
+  static bool wasInAir = false;
+  static double lastBuildingJumpTime = 0.0;
   double now = timeMS(CLOCK_MONOTONIC);
   float currentSpeed = PG_FN_GET_ENTITY_SPEED(instance, vehicle);
 
   int inAir = (int)(pg_test_call(instance, 0x886e37ec497200b6ull, 1, (uint64_t[]){vehicle}) & 1); // IS_ENTITY_IN_AIR
   if (inAir) {
+    wasInAir = true;
     lastAirTime = now;
+  } else {
+    if (wasInAir) {
+      wasInAir = false;
+      landedTime = now; // Vừa tiếp đất an toàn
+      // Khi vừa tiếp đất, tự động chỉnh xe ngay ngắn trên 4 bánh
+      pg_test_call(instance, 0x49733e92263139d1ull, 1, (uint64_t[]){vehicle}); // SET_VEHICLE_ON_GROUND_PROPERLY
+    }
   }
-  bool recentlyLanded = (now - lastAirTime < 1500); // 1.5s sau khi tiep dat tuyet doi khong kich hoat bay lai
+  // Chức năng tự lật xe nếu bị lật ngửa nóc xe xuống đất
+  int stuckOnRoof = (int)(pg_test_call(instance, 0xb497f06b288dcfdfull, 1, (uint64_t[]){vehicle}) & 1); // IS_VEHICLE_STUCK_ON_ROOF
+  if (stuckOnRoof) {
+    pg_test_call(instance, 0x49733e92263139d1ull, 1, (uint64_t[]){vehicle}); // SET_VEHICLE_ON_GROUND_PROPERLY
+  }
+
+  bool recentlyLanded = (now - landedTime < 2500) || (now - lastAirTime < 1500); // 2.5s sau khi tiếp đất tuyệt đối không kích hoạt bay xe
 
   int collided = (int)(pg_test_call(instance, 0x8bad02f0368d9e14ull, 1, (uint64_t[]){vehicle}) & 1); // HAS_ENTITY_COLLIDED_WITH_ANYTHING
   uint32_t hitVehTime = (uint32_t)pg_test_call(instance, 0x5d35ecf3a81a0ee0ull, 1, (uint64_t[]){player}); // GET_TIME_SINCE_PLAYER_HIT_VEHICLE
   uint32_t hitPedTime = (uint32_t)pg_test_call(instance, 0xe36a25322dc35f42ull, 1, (uint64_t[]){player}); // GET_TIME_SINCE_PLAYER_HIT_PED
-  bool hitRecently = (hitVehTime < 400) || (hitPedTime < 400);
-  bool suddenDecel = (lastSpeed - currentSpeed) > 3.0f && lastSpeed > 4.0f;
+  bool hitRecently = (hitVehTime < 300) || (hitPedTime < 300);
+  bool suddenDecel = (lastSpeed - currentSpeed) > 3.0f && lastSpeed > 3.5f;
+  bool isActualImpact = (collided || hitRecently || suddenDecel) && (currentSpeed > 2.0f || lastSpeed > 2.0f);
 
   if (vAddr) {
     const float *pos = pg_pointer(&env, vAddr + 144, 12);
@@ -261,84 +296,87 @@ static void pg_vehicle_god_mod_tick(w2c_game *instance) {
     float rad = heading * 0.0174532925f;
     float dirX = -sinf(rad);
     float dirY = cosf(rad);
-    float frontX = vx + dirX * 3.5f;
-    float frontY = vy + dirY * 3.5f;
-    float aheadX = vx + dirX * 6.5f;
-    float aheadY = vy + dirY * 6.5f;
+    float frontX = vx + dirX * 3.0f;
+    float frontY = vy + dirY * 3.0f;
 
     bool hitTarget = false;
 
-    // 1. TIM XE KHAC DE HAT VANG VA NO TUNG (DAM XE KHAC)
+    // 1. TÌM XE KHÁC ĐỂ HẤT VĂNG VÀ NỔ TUNG (CHỈ NỔ KHI THỰC SỰ ĐÂM TRÚNG XE ĐÓ)
     u32 otherVehicle = 0;
     u32 candVeh = (u32)pg_test_call(instance, 0xf73eb622c4f1689bull, 6,
-      (uint64_t[]){pg_f32_arg(aheadX), pg_f32_arg(aheadY), pg_f32_arg(vz), pg_f32_arg(6.0f), 0, 70});
+      (uint64_t[]){pg_f32_arg(frontX), pg_f32_arg(frontY), pg_f32_arg(vz), pg_f32_arg(3.8f), 0, 70});
     if (candVeh && candVeh != vehicle) {
       otherVehicle = candVeh;
-    } else {
-      candVeh = (u32)pg_test_call(instance, 0xf73eb622c4f1689bull, 6,
-        (uint64_t[]){pg_f32_arg(frontX), pg_f32_arg(frontY), pg_f32_arg(vz), pg_f32_arg(4.5f), 0, 70});
-      if (candVeh && candVeh != vehicle) {
-        otherVehicle = candVeh;
+    }
+
+    if (otherVehicle && otherVehicle != vehicle) {
+      int touchingVeh = (int)(pg_test_call(instance, 0x17ffc1b2ba35a47ull, 2, (uint64_t[]){vehicle, otherVehicle}) & 1); // IS_ENTITY_TOUCHING_ENTITY
+      if ((touchingVeh || (isActualImpact && (hitVehTime < 300 || suddenDecel))) && (now - lastActionTime > 400)) {
+        hitTarget = true;
+        lastActionTime = now;
+        // Xe người chơi KHÔNG BAY, giữ nguyên trên đường. Chỉ xe NPC bị đâm bay vút lên trời rồi nổ tung
+        float flingX = dirX * 42.0f;
+        float flingY = dirY * 42.0f;
+        pg_test_call(instance, 0x1c99bb7b6e96d16full, 4,
+          (uint64_t[]){otherVehicle, pg_f32_arg(flingX), pg_f32_arg(flingY), pg_f32_arg(24.0f)}); // SET_ENTITY_VELOCITY
+        pg_test_call(instance, 0xba71116adf5b514cull, 3, (uint64_t[]){otherVehicle, 1, 0}); // EXPLODE_VEHICLE
+        uint64_t otherAddr = PG_FN_TURBO_ENTITY_ADDRESS(instance, otherVehicle);
+        if (otherAddr) {
+          const float *oPos = pg_pointer(&env, otherAddr + 144, 12);
+          if (oPos) {
+            pg_test_call(instance, 0xe3ad2bdbaee269acull, 8,
+              (uint64_t[]){pg_f32_arg(oPos[0]), pg_f32_arg(oPos[1]), pg_f32_arg(oPos[2] + 1.2f), 2, pg_f32_arg(3.0f), 1, 0, pg_f32_arg(1.0f)}); // ADD_EXPLOSION
+          }
+        }
       }
     }
 
-    if (otherVehicle && otherVehicle != vehicle && (collided || hitRecently || suddenDecel || (now - lastActionTime > 300))) {
-      hitTarget = true;
-      lastActionTime = now;
-      // Xe nguoi choi khong bay, chi xe NPC bi dam bay vot len troi roi no tung
-      float flingX = dirX * 38.0f;
-      float flingY = dirY * 38.0f;
-      pg_test_call(instance, 0x1c99bb7b6e96d16full, 4,
-        (uint64_t[]){otherVehicle, pg_f32_arg(flingX), pg_f32_arg(flingY), pg_f32_arg(22.0f)}); // SET_ENTITY_VELOCITY
-      pg_test_call(instance, 0xba71116adf5b514cull, 3, (uint64_t[]){otherVehicle, 1, 0}); // EXPLODE_VEHICLE
-      pg_test_call(instance, 0xe3ad2bdbaee269acull, 8,
-        (uint64_t[]){pg_f32_arg(aheadX), pg_f32_arg(aheadY), pg_f32_arg(vz), 2, pg_f32_arg(3.0f), 1, 0, pg_f32_arg(1.0f)}); // ADD_EXPLOSION
-    }
-
-    // 2. TIM NPC DE HAT VANG VA NO TUNG (DAM NPC)
+    // 2. TÌM NPC ĐỂ HẤT VĂNG VÀ NỔ TUNG (CHỈ NỔ KHI THỰC SỰ ĐÂM TRÚNG NPC)
     static uint64_t gPedOutBuf = 0;
     if (!gPedOutBuf) gPedOutBuf = PG_FN_OPERATOR_NEW(instance, 64);
     u32 nearbyPed = 0;
     if (gPedOutBuf) {
       *(uint32_t *)pg_pointer(&env, gPedOutBuf, 4) = 0;
       int found = (int)(pg_test_call(instance, 0xc33ab876a77f8164ull, 10,
-        (uint64_t[]){pg_f32_arg(frontX), pg_f32_arg(frontY), pg_f32_arg(vz), pg_f32_arg(5.5f), 1, 1, gPedOutBuf, 0, 0, (uint32_t)-1}) & 1);
+        (uint64_t[]){pg_f32_arg(frontX), pg_f32_arg(frontY), pg_f32_arg(vz), pg_f32_arg(3.6f), 1, 1, gPedOutBuf, 0, 0, (uint32_t)-1}) & 1);
       if (found) {
         nearbyPed = *(uint32_t *)pg_pointer(&env, gPedOutBuf, 4);
       }
-      if (!nearbyPed || nearbyPed == ped) {
-        *(uint32_t *)pg_pointer(&env, gPedOutBuf, 4) = 0;
-        found = (int)(pg_test_call(instance, 0xc33ab876a77f8164ull, 10,
-          (uint64_t[]){pg_f32_arg(aheadX), pg_f32_arg(aheadY), pg_f32_arg(vz), pg_f32_arg(6.0f), 1, 1, gPedOutBuf, 0, 0, (uint32_t)-1}) & 1);
-        if (found) {
-          nearbyPed = *(uint32_t *)pg_pointer(&env, gPedOutBuf, 4);
+    }
+
+    if (nearbyPed && nearbyPed != ped) {
+      int touchingPed = (int)(pg_test_call(instance, 0x17ffc1b2ba35a47ull, 2, (uint64_t[]){vehicle, nearbyPed}) & 1); // IS_ENTITY_TOUCHING_ENTITY
+      if ((touchingPed || (isActualImpact && (hitPedTime < 300 || suddenDecel))) && (now - lastActionTime > 400)) {
+        hitTarget = true;
+        lastActionTime = now;
+        // Xe người chơi KHÔNG BAY. NPC bị hất văng lên trời rồi nổ
+        float flingX = dirX * 36.0f;
+        float flingY = dirY * 36.0f;
+        pg_test_call(instance, 0x1c99bb7b6e96d16full, 4,
+          (uint64_t[]){nearbyPed, pg_f32_arg(flingX), pg_f32_arg(flingY), pg_f32_arg(18.0f)}); // SET_ENTITY_VELOCITY
+        pg_test_call(instance, 0xb128377056a54e2aull, 2, (uint64_t[]){nearbyPed, 1}); // SET_PED_CAN_RAGDOLL: 1
+        pg_test_call(instance, 0xae99fb955586417aull, 8, (uint64_t[]){nearbyPed, 5000, 5000, 0, 1, 1, 0}); // SET_PED_TO_RAGDOLL
+        uint64_t pedAddr = PG_FN_TURBO_ENTITY_ADDRESS(instance, nearbyPed);
+        if (pedAddr) {
+          const float *pPos = pg_pointer(&env, pedAddr + 144, 12);
+          if (pPos) {
+            pg_test_call(instance, 0xe3ad2bdbaee269acull, 8,
+              (uint64_t[]){pg_f32_arg(pPos[0]), pg_f32_arg(pPos[1]), pg_f32_arg(pPos[2] + 1.2f), 2, pg_f32_arg(2.5f), 1, 0, pg_f32_arg(1.0f)}); // ADD_EXPLOSION
+          }
         }
       }
     }
 
-    if (nearbyPed && nearbyPed != ped && (collided || hitRecently || suddenDecel || (now - lastActionTime > 300))) {
-      hitTarget = true;
-      lastActionTime = now;
-      float flingX = dirX * 32.0f;
-      float flingY = dirY * 32.0f;
-      pg_test_call(instance, 0x1c99bb7b6e96d16full, 4,
-        (uint64_t[]){nearbyPed, pg_f32_arg(flingX), pg_f32_arg(flingY), pg_f32_arg(16.0f)}); // SET_ENTITY_VELOCITY
-      pg_test_call(instance, 0xb128377056a54e2aull, 2, (uint64_t[]){nearbyPed, 1}); // SET_PED_CAN_RAGDOLL: 1
-      pg_test_call(instance, 0xae99fb955586417aull, 8, (uint64_t[]){nearbyPed, 5000, 5000, 0, 1, 1, 0}); // SET_PED_TO_RAGDOLL
-      pg_test_call(instance, 0xe3ad2bdbaee269acull, 8,
-        (uint64_t[]){pg_f32_arg(frontX), pg_f32_arg(frontY), pg_f32_arg(vz), 2, pg_f32_arg(2.5f), 1, 0, pg_f32_arg(1.0f)}); // ADD_EXPLOSION
-    }
-
-    // 3. CHI DAM VAO CAY HOAC TOA NHA CO DINH MOI BAY LEN TROI (KHONG TRUNG XE/NPC)
-    // Roi xuong tiep dat KHONG BAO GIO BAY TIEP, van chay binh thuong
-    if (!hitTarget && !inAir && !recentlyLanded && (collided && suddenDecel) && lastSpeed >= 7.0f && (now - lastActionTime > 500)) {
-      lastActionTime = now;
+    // 3. CHỈ ĐÂM VÀO CÂY HOẶC TÒA NHÀ CỐ ĐỊNH MỚI BAY LÊN TRỜI (KHÔNG TRÚNG XE/NPC)
+    // Rơi xuống tiếp đất KHÔNG ĐƯỢC BAY TIẾP, vẫn chạy bình thường
+    if (!hitTarget && !inAir && !recentlyLanded && (collided && suddenDecel) && lastSpeed >= 7.5f && (now - lastBuildingJumpTime > 3000)) {
+      lastBuildingJumpTime = now;
       lastAirTime = now;
-      // Bay len vua phai (vz = 16.0f, cao khoang 12-14m, khong bay qua cao) kem xung luc luot toi
-      float jumpX = dirX * 10.0f;
-      float jumpY = dirY * 10.0f;
+      // Bay lên vừa phải (vz = 14.0f, cao khoảng 10-12m) kèm xung lực lướt tới
+      float jumpX = dirX * 8.0f;
+      float jumpY = dirY * 8.0f;
       pg_test_call(instance, 0x1c99bb7b6e96d16full, 4,
-        (uint64_t[]){vehicle, pg_f32_arg(jumpX), pg_f32_arg(jumpY), pg_f32_arg(16.0f)}); // SET_ENTITY_VELOCITY vz = 16m/s
+        (uint64_t[]){vehicle, pg_f32_arg(jumpX), pg_f32_arg(jumpY), pg_f32_arg(14.0f)}); // SET_ENTITY_VELOCITY vz = 14m/s
     }
   }
   lastSpeed = currentSpeed;
@@ -348,11 +386,8 @@ static void pg_vehicle_god_mod_tick(w2c_game *instance) {
 static void pg_native_cheats_tick(w2c_game *instance) {
   pg_streaming_position_tick();
   pg_scene_transition_trace();
-  // Triet tieu triet de moi hieu ung lam mo man hinh cua game (transition blur, screenblur fade, animpostfx)
-  pg_test_call(instance, 0xde81239437e8c5a8ull, 0, NULL); // DISABLE_SCREENBLUR_FADE
-  pg_test_call(instance, 0xefacc8aef94430d5ull, 1, (uint64_t[]){0}); // TRIGGER_SCREENBLUR_FADE_OUT(0.0f)
-  pg_test_call(instance, 0xb4eddc19532bfb85ull, 0, NULL); // ANIMPOSTFX_STOP_ALL
-  pg_test_call(instance, 0x487a82c650eb7799ull, 1, (uint64_t[]){0}); // SET_GAMEPLAY_CAM_MOTION_BLUR_SCALING_THIS_UPDATE(0.0f)
+  // Luôn dọn dẹp triệt để mọi hiệu ứng làm mờ màn hình mỗi frame trong script context
+  pg_clear_all_screen_blur(instance);
   pg_vehicle_god_mod_tick(instance);
   pg_native_cheats_action_tick(instance);
   pg_apply_pending_cheat_switches(instance);

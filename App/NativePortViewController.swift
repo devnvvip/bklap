@@ -71,7 +71,7 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
     ]
     private func cycleRainbowWatermark(index: Int) {
         let nextIndex = (index + 1) % rainbowColors.count
-        UIView.transition(with: iosmodsWatermarkLabel, duration: 0.12, options: [.transitionCrossDissolve, .allowUserInteraction], animations: {
+        UIView.transition(with: iosmodsWatermarkLabel, duration: 0.08, options: [.transitionCrossDissolve, .allowUserInteraction], animations: {
             self.iosmodsWatermarkLabel.textColor = self.rainbowColors[nextIndex]
         }) { [weak self] _ in
             self?.cycleRainbowWatermark(index: nextIndex)
@@ -80,8 +80,8 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
     // Top left, or bottom left while the minimap sits at the top (GTA-131).
     private lazy var fpsAtTop = fpsLabel.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8)
     private lazy var fpsAtBottom = fpsLabel.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8)
-    private lazy var watermarkAtTop = iosmodsWatermarkLabel.topAnchor.constraint(equalTo: fpsLabel.bottomAnchor, constant: 2)
-    private lazy var watermarkAtBottom = iosmodsWatermarkLabel.bottomAnchor.constraint(equalTo: fpsLabel.topAnchor, constant: -2)
+    private lazy var watermarkAtTop = iosmodsWatermarkLabel.topAnchor.constraint(equalTo: fpsLabel.bottomAnchor, constant: 1)
+    private lazy var watermarkAtBottom = iosmodsWatermarkLabel.bottomAnchor.constraint(equalTo: fpsLabel.topAnchor, constant: -1)
     private func placeFPSLabel() {
         let bottom = GameSettings.shared.minimapAtTop
         fpsAtTop.isActive = !bottom
@@ -313,7 +313,7 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         view.addSubview(fpsLabel)
 
         iosmodsWatermarkLabel.text = "Made by iosmods"
-        iosmodsWatermarkLabel.font = .systemFont(ofSize: 9, weight: .heavy)
+        iosmodsWatermarkLabel.font = .systemFont(ofSize: 8.5, weight: .bold)
         iosmodsWatermarkLabel.textColor = rainbowColors[0]
         iosmodsWatermarkLabel.shadowColor = UIColor.black.withAlphaComponent(0.9)
         iosmodsWatermarkLabel.shadowOffset = CGSize(width: 1, height: 1)
@@ -443,9 +443,8 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(lookForGameFiles), name: UIApplication.didBecomeActiveNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(installChanged), name: .gameInstallChanged, object: nil)
         displayLink = CADisplayLink(target: self, selector: #selector(pollController))
-        // Khóa cứng nghiêm ngặt 60 FPS hoặc unlock cứng tối đa 120 FPS trên ProMotion
-        let top = Float(UIScreen.main.maximumFramesPerSecond)
-        displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: top, preferred: top)
+        // Khóa cứng nghiêm ngặt đúng 60 FPS
+        displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 60, preferred: 60)
         displayLink?.add(to: .main, forMode: .common)
         #if targetEnvironment(simulator)
         DebugChannel.shared.start(self)
