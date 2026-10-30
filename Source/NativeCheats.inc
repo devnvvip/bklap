@@ -317,6 +317,11 @@ static void pg_vehicle_god_mod_tick(w2c_game *instance) {
 static void pg_native_cheats_tick(w2c_game *instance) {
   pg_streaming_position_tick();
   pg_scene_transition_trace();
+  // Triet tieu triet de moi hieu ung lam mo man hinh cua game (transition blur, screenblur fade, animpostfx)
+  pg_test_call(instance, 0xde81239437e8c5a8ull, 0, NULL); // DISABLE_SCREENBLUR_FADE
+  pg_test_call(instance, 0xefacc8aef94430d5ull, 1, (uint64_t[]){0}); // TRIGGER_SCREENBLUR_FADE_OUT(0.0f)
+  pg_test_call(instance, 0xb4eddc19532bfb85ull, 0, NULL); // ANIMPOSTFX_STOP_ALL
+  pg_test_call(instance, 0x487a82c650eb7799ull, 1, (uint64_t[]){0}); // SET_GAMEPLAY_CAM_MOTION_BLUR_SCALING_THIS_UPDATE(0.0f)
   pg_vehicle_god_mod_tick(instance);
   pg_native_cheats_action_tick(instance);
   pg_apply_pending_cheat_switches(instance);

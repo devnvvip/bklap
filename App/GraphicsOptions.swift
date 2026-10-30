@@ -33,19 +33,19 @@ enum GraphicsPreset: Int, CaseIterable {
         switch self {
         case .lite, .battery, .performance:
             return ["-shaderQuality=1", "-textureQuality=2", "-shadowQuality=-1", "-reflectionQuality=0", "-particleQuality=0",
-                    "-grassQuality=0", "-cityDensity=0.4", "-lodScale=1", "-pedLodBias=2.0", "-vehicleLodBias=2.0", "-pedVariety=0.2", "-vehicleVariety=0.2", "-anisotropicQuality=16"]
+                    "-grassQuality=0", "-cityDensity=0.4", "-lodScale=1", "-pedLodBias=2.0", "-vehicleLodBias=2.0", "-pedVariety=0.2", "-vehicleVariety=0.2", "-anisotropicQuality=16", "-postFX=0"]
         case .balanced:
             return ["-shaderQuality=1", "-textureQuality=2", "-shadowQuality=0", "-reflectionQuality=0", "-particleQuality=0",
-                    "-grassQuality=0", "-cityDensity=0.4", "-lodScale=1", "-pedLodBias=2.0", "-vehicleLodBias=2.0", "-pedVariety=0.2", "-vehicleVariety=0.2", "-anisotropicQuality=16"]
+                    "-grassQuality=0", "-cityDensity=0.4", "-lodScale=1", "-pedLodBias=2.0", "-vehicleLodBias=2.0", "-pedVariety=0.2", "-vehicleVariety=0.2", "-anisotropicQuality=16", "-postFX=0"]
         case .quality:
             return ["-shaderQuality=1", "-textureQuality=2", "-shadowQuality=0", "-reflectionQuality=1", "-particleQuality=1",
-                    "-grassQuality=1", "-cityDensity=0.4", "-lodScale=1", "-pedLodBias=2.0", "-vehicleLodBias=2.0", "-pedVariety=0.2", "-vehicleVariety=0.2", "-anisotropicQuality=16"]
+                    "-grassQuality=1", "-cityDensity=0.4", "-lodScale=1", "-pedLodBias=2.0", "-vehicleLodBias=2.0", "-pedVariety=0.2", "-vehicleVariety=0.2", "-anisotropicQuality=16", "-postFX=0"]
         case .ultra:
             return ["-shaderQuality=2", "-textureQuality=2", "-shadowQuality=1", "-reflectionQuality=2", "-particleQuality=1",
-                    "-grassQuality=1", "-cityDensity=0.6", "-lodScale=1", "-pedLodBias=2.0", "-vehicleLodBias=2.0", "-pedVariety=0.4", "-vehicleVariety=0.4", "-anisotropicQuality=16"]
+                    "-grassQuality=1", "-cityDensity=0.6", "-lodScale=1", "-pedLodBias=2.0", "-vehicleLodBias=2.0", "-pedVariety=0.4", "-vehicleVariety=0.4", "-anisotropicQuality=16", "-postFX=0"]
         case .max:
             return ["-shaderQuality=2", "-textureQuality=2", "-shadowQuality=2", "-reflectionQuality=2", "-particleQuality=2",
-                    "-grassQuality=2", "-cityDensity=1", "-lodScale=1", "-pedLodBias=2.0", "-vehicleLodBias=2.0", "-pedVariety=0.4", "-vehicleVariety=0.4", "-anisotropicQuality=16"]
+                    "-grassQuality=2", "-cityDensity=1", "-lodScale=1", "-pedLodBias=2.0", "-vehicleLodBias=2.0", "-pedVariety=0.4", "-vehicleVariety=0.4", "-anisotropicQuality=16", "-postFX=0"]
         }
     }
 }
@@ -206,8 +206,8 @@ enum GraphicsConfiguration {
         // The engine and renderer read PG_LITE when they start, after this. The Lite build always sets it.
         if preset == .lite { setenv("PG_LITE", "1", 1) } else if !Theme.isLite { unsetenv("PG_LITE") }
         PGSetMemoryCap(Int32(settings.memoryCapMB))
-        let enableSharper = false
-        PGSetSharperUpscaling(0)
+        let enableSharper = settings.sharperUpscaling
+        PGSetSharperUpscaling(enableSharper ? 1 : 0)
         var pointers = options.map { strdup($0) }
         defer { pointers.forEach { free($0) } }
         pointers.withUnsafeMutableBufferPointer { buffer in
