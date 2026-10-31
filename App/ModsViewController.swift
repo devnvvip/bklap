@@ -67,7 +67,7 @@ final class ModsViewController: UITableViewController, UIDocumentPickerDelegate 
             toggle.isEnabled = change != "remove"
             toggle.addAction(UIAction { [weak self] action in
                 guard let self, let toggle = action.sender as? UISwitch else { return }
-                do { try ModInstaller.setEnabled(mod, toggle.isOn); if mod.name == BundledMenyoo.name {UserDefaults.standard.set(toggle.isOn,forKey:"NewGenMenyooEnabled")} } catch { toggle.isOn = !toggle.isOn; self.show(error) }
+                do { try ModInstaller.setEnabled(mod, toggle.isOn); if mod.name == BundledMenyoo.name {UserDefaults.standard.set(toggle.isOn,forKey:"NewGenMenyooEnabled")}; if mod.name == BundledDVFP.name {UserDefaults.standard.set(toggle.isOn,forKey:"NewGenDVFPEnabled")} } catch { toggle.isOn = !toggle.isOn; self.show(error) }
                 self.reload()
             }, for: .valueChanged)
             cell.accessoryView = toggle

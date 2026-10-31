@@ -60,6 +60,7 @@ final class SettingsHomeViewController: UITableViewController {
             return count == 0 ? AppLanguage.choose("Install car, skin and script mods") : AppLanguage.interpolate(AppLanguage.choose("{arg0} mods on"), [String(count)])
         }, sections: [], page: { ModsViewController() }))
         list.append(Category(icon:"puzzlepiece.extension",title:"Plugin Menyoo",summary:{"Bật/tắt Menyoo tích hợp, hướng dẫn nút điều khiển"},sections:[],page:{BundledMenyooViewController()}))
+        list.append(Category(icon:"car",title:"Plugin First Person",summary:{"Bật/tắt Dynamic Vehicle First Person tích hợp (menu F7)"},sections:[],page:{BundledDVFPViewController()}))
         list.append(Category(icon:"flame",title:"Turbo và lửa bô (thử nghiệm)",summary:{"Turbo, boost theo số, anti-lag, âm thanh và đồng hồ"},sections:[],page:{TurboSettingsViewController()}))
         list.append(Category(icon:"memorychip",title:"RAM và quyền bộ nhớ",summary:{"Kiểm tra quyền tăng RAM, bỏ cap riêng và xuất entitlement"},sections:[],page:{MemoryAccessViewController(engineRunning:running)}))
         list.append(Category(icon: "iphone", title: AppLanguage.choose("This device"), summary: {
