@@ -3,17 +3,16 @@
 // Sử dụng 100% camera native của Rockstar Games (camGameplayDirector) và các native view mode:
 // - Góc nhìn thứ ba: Mode 2 (Far) cho góc nhìn rộng bao quát, chuyển động mượt mà tuyệt đối không rung giật.
 // - Góc nhìn thứ nhất (First Person Cockpit) chuẩn như GTA V PC:
-//   * Áp dụng đồng bộ cho cả đi bộ VÀ TẤT CẢ mọi loại xe (ô tô, xe máy, xe đạp, thuyền, máy bay, trực thăng).
-//   * Không bao giờ bị nhảy góc nhìn hay chớp giật khi lên/xuống xe.
+//   * Tự do chuyển đổi bằng nút Camera trên màn hình, không bao giờ ép đảo camera mỗi frame.
+//   * Tự động đồng bộ khi lên xe hoặc xuống xe: đang góc thứ nhất khi đi bộ -> lên xe vẫn ở góc thứ nhất;
+//     và ngược lại khi xuống xe.
 //   * Thấy trọn vẹn cả cánh tay và vai cùng vô lăng/ghi đông chân thật trên tất cả mọi loại xe.
 //   * Cự ly cắt gần near-clip 0.18f: thấy trọn vẹn tay và vai, không bị cắt cụt củn lủn, triệt tiêu lọt hình.
 //   * Luôn vô hiệu hóa camera nắp ca-pô (bonnet cam), tự động tháo mũ bảo hiểm xe máy.
 // - Báo trạng thái lái xe cho Metal renderer để khóa cứng 80 FPS khi đi bộ và 75 FPS khi lái xe.
-// - Không ép orbit distance limits mỗi frame để engine tự do xử lý va chạm mượt mà 100%.
 
 static _Atomic bool wfEnabled;
 static _Atomic float wfFoot = 1.0f, wfVehicle = 1.0f;
-// gPreferredViewMode is defined in EngineHost.c and declared in HostInternal.h
 
 void PGSetPlayerDriving(int inVehicle);
 void PGSetWideFOV(bool enabled, float foot, float vehicle) {
@@ -35,7 +34,7 @@ static void pg_wf_destroy(w2c_game *instance, int *cam, bool *active) {
 static void pg_wide_fov_tick(w2c_game *instance) {
   static int cam; static bool active;
   static u32 lastVehicle = 0;
-  static int lastAppliedMode = -1;
+  static bool initialized = false;
 
   // Luôn hủy triệt để script camera nếu có: giải phóng camera gameplay native của game
   if (active || cam) {
@@ -61,63 +60,56 @@ static void pg_wide_fov_tick(w2c_game *instance) {
   pg_test_call(instance, 0x0ef93e9f3d08c178ull, 1, (uint64_t[]){1}); // STOP_GAMEPLAY_CAM_SHAKING(true)
   pg_test_call(instance, 0xa87e00932db4d85dull, 1, (uint64_t[]){pg_f32_arg(0.0f)}); // SET_GAMEPLAY_CAM_SHAKE_AMPLITUDE(0.0f)
 
-  // Nhận diện khi người chơi nhấn nút đổi camera (Camera button trên HUD hoặc phím V/Select):
-  if (pg_test_call(instance, 0x580424a23fb0fc82ull, 2, (uint64_t[]){0, 0})) { // IS_CONTROL_JUST_PRESSED(0, 0: NEXT_CAMERA)
-    int cur = atomic_load(&gPreferredViewMode);
-    atomic_store(&gPreferredViewMode, (cur == 4) ? 2 : 4);
-    lastAppliedMode = -1; // Áp dụng ngay chế độ mới
+  // Lấy chế độ góc nhìn hiện tại
+  const int pedMode = (int)pg_test_call(instance, 0x8d4d46230b2c353aull, 0, NULL); // GET_FOLLOW_PED_CAM_VIEW_MODE
+  const int vehMode = (int)pg_test_call(instance, 0xa4ff579ac0e3aaaeull, 0, NULL); // GET_FOLLOW_VEHICLE_CAM_VIEW_MODE
+
+  if (!initialized) {
+    initialized = true;
+    lastVehicle = vehicle;
+    if (enabled) {
+      if (vehicle) pg_test_call(instance, 0xac253d7842768f48ull, 1, (uint64_t[]){2}); // SET_FOLLOW_VEHICLE_CAM_VIEW_MODE(2)
+      else pg_test_call(instance, 0x5a4f9edf1673f704ull, 1, (uint64_t[]){2});         // SET_FOLLOW_PED_CAM_VIEW_MODE(2)
+    }
+  } else if (vehicle != lastVehicle) {
+    // Chỉ kích hoạt một lần duy nhất tại khoảnh khắc bước lên xe hoặc bước xuống xe:
+    // Đồng bộ góc nhìn thứ nhất (Mode 4) mượt mà, không bao giờ bị nhảy sang góc nhìn khác khi lên/xuống xe!
+    if (vehicle != 0) {
+      // Vừa bước lên xe: Nếu đang ở góc nhìn thứ nhất, giữ nguyên buồng lái thứ nhất cho xe!
+      if (pedMode == 4) {
+        pg_test_call(instance, 0xac253d7842768f48ull, 1, (uint64_t[]){4});
+      } else if (enabled && pedMode == 2) {
+        pg_test_call(instance, 0xac253d7842768f48ull, 1, (uint64_t[]){2});
+      }
+    } else {
+      // Vừa bước xuống xe: Nếu trên xe đang ở góc nhìn thứ nhất, giữ nguyên góc thứ nhất khi đi bộ!
+      if (vehMode == 4) {
+        pg_test_call(instance, 0x5a4f9edf1673f704ull, 1, (uint64_t[]){4});
+      } else if (enabled && vehMode == 2) {
+        pg_test_call(instance, 0x5a4f9edf1673f704ull, 1, (uint64_t[]){2});
+      }
+    }
+    lastVehicle = vehicle;
   }
 
-  const int preferredMode = atomic_load(&gPreferredViewMode);
-  const bool vehTransition = (vehicle != lastVehicle);
-  lastVehicle = vehicle;
+  const int currentMode = (vehicle != 0) ? vehMode : pedMode;
 
-  if (preferredMode == 4) {
+  if (currentMode == 4) {
     // ==============================================================
-    // CHẾ ĐỘ GÓC NHÌN THỨ NHẤT RỘNG (FIRST PERSON COCKPIT LIKE GTA 5 PC)
+    // GÓC NHÌN THỨ NHẤT RỘNG (FIRST PERSON COCKPIT LIKE GTA 5 PC)
     // ==============================================================
-    if (vehTransition || lastAppliedMode != 4) {
-      if (vehicle) {
-        // Khi lên bất kỳ loại xe nào (ô tô, xe máy, xe đạp, thuyền, máy bay, trực thăng):
-        // Giữ nguyên 100% góc nhìn thứ nhất buồng lái, không bao giờ bị chuyển sang góc nhìn khác hay chớp giật!
-        for (int c = 1; c <= 7; c++) {
-          pg_test_call(instance, 0x2a2173e46daecd12ull, 2, (uint64_t[]){(uint32_t)c, 4}); // SET_CAM_VIEW_MODE_FOR_CONTEXT(c, 4)
-        }
-        pg_test_call(instance, 0xac253d7842768f48ull, 1, (uint64_t[]){4}); // SET_FOLLOW_VEHICLE_CAM_VIEW_MODE(4)
-      } else {
-        // Khi đi bộ: giữ nguyên góc nhìn thứ nhất
-        pg_test_call(instance, 0x2a2173e46daecd12ull, 2, (uint64_t[]){0, 4}); // SET_CAM_VIEW_MODE_FOR_CONTEXT(0: On foot, 4)
-        pg_test_call(instance, 0x5a4f9edf1673f704ull, 1, (uint64_t[]){4}); // SET_FOLLOW_PED_CAM_VIEW_MODE(4)
-      }
-      lastAppliedMode = 4;
+    if (vehicle != 0) {
+      // Luôn vô hiệu hóa camera nắp ca-pô: thấy trọn vẹn vô lăng và 2 tay lái
+      pg_test_call(instance, 0x7b8a361c1813fbefull, 1, (uint64_t[]){1}); // IGNORE_MENU_PREFERENCE_FOR_BONNET_CAMERA_THIS_UPDATE(true)
+      pg_test_call(instance, 0xadff1b2a555f5fbaull, 1, (uint64_t[]){1}); // DISABLE_CINEMATIC_BONNET_CAMERA_THIS_UPDATE(true)
     }
 
-    // Luôn ngăn chặn camera nắp ca-pô (bonnet/hood cam): ép 100% hiển thị buồng lái và 2 tay lái
-    pg_test_call(instance, 0x7b8a361c1813fbefull, 1, (uint64_t[]){1}); // IGNORE_MENU_PREFERENCE_FOR_BONNET_CAMERA_THIS_UPDATE(true)
-    pg_test_call(instance, 0xadff1b2a555f5fbaull, 1, (uint64_t[]){1}); // DISABLE_CINEMATIC_BONNET_CAMERA_THIS_UPDATE(true)
-
-    // Cự ly cắt gần (near clip): 0.18f hiển thị trọn vẹn cả cánh tay và vai (không bị cắt cụt như khi để 0.28f)
+    // Cự ly cắt gần near clip 0.18f: thấy trọn vẹn cả cánh tay và vai, triệt tiêu lọt ngực
     pg_test_call(instance, 0x0af7b437918103b3ull, 1, (uint64_t[]){pg_f32_arg(0.18f)}); // SET_FIRST_PERSON_AIM_CAM_NEAR_CLIP_THIS_UPDATE(0.18f)
 
-    // Tự động gỡ bỏ mũ bảo hiểm xe máy/đua xe để tầm nhìn luôn thông thoáng
+    // Tự động gỡ bỏ mũ bảo hiểm khi lái xe máy để tầm nhìn luôn thông thoáng
     pg_test_call(instance, 0xa7b2458d0ad6ded8ull, 2, (uint64_t[]){ped, 1}); // REMOVE_PED_HELMET(ped, true)
     pg_test_call(instance, 0x560a43136eb58105ull, 2, (uint64_t[]){ped, 0}); // SET_PED_HELMET(ped, false)
-  } else if (enabled) {
-    // ==============================================================
-    // CHẾ ĐỘ GÓC NHÌN THỨ BA RỘNG (THIRD PERSON FAR - MODE 2)
-    // ==============================================================
-    if (vehTransition || lastAppliedMode != 2) {
-      if (vehicle) {
-        for (int c = 1; c <= 7; c++) {
-          pg_test_call(instance, 0x2a2173e46daecd12ull, 2, (uint64_t[]){(uint32_t)c, 2});
-        }
-        pg_test_call(instance, 0xac253d7842768f48ull, 1, (uint64_t[]){2}); // SET_FOLLOW_VEHICLE_CAM_VIEW_MODE(2: Far)
-      } else {
-        pg_test_call(instance, 0x2a2173e46daecd12ull, 2, (uint64_t[]){0, 2}); // SET_CAM_VIEW_MODE_FOR_CONTEXT(0: On foot, 2)
-        pg_test_call(instance, 0x5a4f9edf1673f704ull, 1, (uint64_t[]){2}); // SET_FOLLOW_PED_CAM_VIEW_MODE(2: Far)
-      }
-      lastAppliedMode = 2;
-    }
   }
 
   pg_asi_leave_script(instance, previous);

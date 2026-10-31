@@ -220,8 +220,14 @@ final class ModKeysView: UIView, UIKeyInput {
             if latched.contains(key) { latched.remove(key); PGAsiSetKey(Int32(key), false) } else { latched.insert(key); PGAsiSetKey(Int32(key), true) }
             return
         }
-        PGAsiSetKey(Int32(key), down)
-        if !down { for modifier in latched { PGAsiSetKey(Int32(modifier), false) }; latched.removeAll() }
+        if down {
+            PGAsiSetKey(Int32(key), true)
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                PGAsiSetKey(Int32(key), false)
+            }
+            if !latched.isEmpty { for modifier in latched { PGAsiSetKey(Int32(modifier), false) }; latched.removeAll() }
+        }
     }
 
     private func togglePin(_ key: Int) {

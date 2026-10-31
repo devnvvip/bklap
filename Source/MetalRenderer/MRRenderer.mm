@@ -2091,19 +2091,14 @@ static id<MTLTexture> upscaled(Texture *) {
 #endif
 
 // Sleeps until `target` (CACurrentMediaTime seconds) without burning a core: the thread sleeps in the kernel
-// directly via mach_wait_until with fine yield-locking, eliminating busy-loops to save maximum CPU and battery on Apple Silicon (A18).
+// directly via mach_wait_until, eliminating busy-loops to save maximum CPU and battery on Apple Silicon (A18).
 static void pacingSleepUntil(double target) {
 	static mach_timebase_info_data_t timebase;
 	if (!timebase.denom) mach_timebase_info(&timebase);
 	double remaining = target - CACurrentMediaTime();
-	if (remaining > 0.0015) {
-		uint64_t sleepTicks = (uint64_t)((remaining - 0.001) * 1e9 * timebase.denom / timebase.numer);
+	if (remaining > 0.0005) {
+		uint64_t sleepTicks = (uint64_t)(remaining * 1e9 * timebase.denom / timebase.numer);
 		mach_wait_until(mach_absolute_time() + sleepTicks);
-	}
-	while (CACurrentMediaTime() < target) {
-		#if defined(__arm64__) || defined(__aarch64__)
-		asm volatile("yield");
-		#endif
 	}
 }
 

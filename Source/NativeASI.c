@@ -527,7 +527,15 @@ static uint64_t s_SHGetKnownFolderPath(void) {
 static uint64_t k_GetFileAttributesW(void) {
   char n[1024]; wToUtf8(ARG(0), -1, n, sizeof n);
   char p[1100]; struct stat st; hostPath(n, p, sizeof p);
-  if (stat(p, &st)) { setError(2); return 0xFFFFFFFF; }
+  if (stat(p, &st)) {
+    char rel[1024]; snprintf(rel, sizeof rel, "%s", n);
+    for (char *c = rel; *c; c++) if (*c == '\\') *c = '/';
+    const char *r = rel; if (r[0] && r[1] == ':') r += 2;
+    while (*r == '/') r++;
+    if (!strncasecmp(r, "GTA5/", 5)) r += 5;
+    snprintf(p, sizeof p, "%s/%s", H.files, r);
+    if (stat(p, &st)) { setError(2); return 0xFFFFFFFF; }
+  }
   return S_ISDIR(st.st_mode) ? 0x10 : 0x80;
 }
 static uint64_t k_CreateDirectoryW(void) {
@@ -538,6 +546,60 @@ static uint64_t k_CreateDirectoryW(void) {
 static uint64_t k_FindFirstFileW(void) {
   char n[1024]; wToUtf8(ARG(0), -1, n, sizeof n);
   return findFirst(n, ARG(1), true);
+}
+static uint64_t k_GetFileAttributesExW(void) {
+  char n[1024]; wToUtf8(ARG(0), -1, n, sizeof n);
+  char p[1100]; struct stat st; hostPath(n, p, sizeof p);
+  if (stat(p, &st)) {
+    char rel[1024]; snprintf(rel, sizeof rel, "%s", n);
+    for (char *c = rel; *c; c++) if (*c == '\\') *c = '/';
+    const char *r = rel; if (r[0] && r[1] == ':') r += 2;
+    while (*r == '/') r++;
+    if (!strncasecmp(r, "GTA5/", 5)) r += 5;
+    snprintf(p, sizeof p, "%s/%s", H.files, r);
+    if (stat(p, &st)) { setError(2); return 0; }
+  }
+  uint64_t out = ARG(2);
+  if (out) {
+    memset(G(out), 0, 36);
+    wr32(out, S_ISDIR(st.st_mode) ? 0x10 : 0x80);
+    wr32(out + 28, (uint32_t)((uint64_t)st.st_size >> 32));
+    wr32(out + 32, (uint32_t)st.st_size);
+  }
+  return 1;
+}
+static uint64_t k_GetFileInformationByHandle(void) {
+  Handle *f = handleFor(ARG(0));
+  if (!f || f->fd < 0) { setError(6); return 0; }
+  struct stat st;
+  if (fstat(f->fd, &st)) { setError(6); return 0; }
+  uint64_t out = ARG(1);
+  if (out) {
+    memset(G(out), 0, 52);
+    wr32(out, S_ISDIR(st.st_mode) ? 0x10 : 0x80);
+    wr32(out + 32, (uint32_t)((uint64_t)st.st_size >> 32));
+    wr32(out + 36, (uint32_t)st.st_size);
+  }
+  return 1;
+}
+static uint64_t k_GetFileInformationByHandleEx(void) {
+  uint64_t out = ARG(2);
+  if (out && (uint32_t)ARG(3) >= 4) memset(G(out), 0, (uint32_t)ARG(3));
+  return 1;
+}
+static uint64_t k_CopyFileW(void) {
+  char src[1024], dst[1024];
+  wToUtf8(ARG(0), -1, src, sizeof src);
+  wToUtf8(ARG(1), -1, dst, sizeof dst);
+  char psrc[1100], pdst[1100];
+  hostPath(src, psrc, sizeof psrc);
+  hostPath(dst, pdst, sizeof pdst);
+  FILE *in = fopen(psrc, "rb"); if (!in) return 0;
+  FILE *out = fopen(pdst, "wb"); if (!out) { fclose(in); return 0; }
+  char buf[4096]; size_t r;
+  while ((r = fread(buf, 1, sizeof buf, in)) > 0) fwrite(buf, 1, r, out);
+  fclose(in); fclose(out);
+  return 1;
 }
 static uint64_t s_PathFindFileNameA(void) { uint64_t p = ARG(0), last = p; for (uint64_t a = p; *G(a); a++) if (*G(a) == '\\' || *G(a) == '/') last = a + 1; return last; }
 
@@ -613,7 +675,11 @@ static const Import imports[] = {
   {"GetPrivateProfileStringA", k_GetPrivateProfileStringA}, {"GetPrivateProfileIntA", k_GetPrivateProfileIntA}, {"WritePrivateProfileStringA", k_WritePrivateProfileStringA},
   {"GetAsyncKeyState", u_GetAsyncKeyState}, {"GetKeyState", u_GetAsyncKeyState}, {"GetForegroundWindow", u_GetForegroundWindow}, {"GetWindowThreadProcessId", u_GetWindowThreadProcessId}, {"PathFindFileNameA", s_PathFindFileNameA},
   {"TryAcquireSRWLockExclusive", k_TryAcquireSRWLockExclusive}, {"CoTaskMemFree", o_CoTaskMemFree}, {"LocalFree", k_LocalFree}, {"SHGetKnownFolderPath", s_SHGetKnownFolderPath},
-  {"GetFileAttributesW", k_GetFileAttributesW}, {"CreateDirectoryW", k_CreateDirectoryW},
+  {"GetFileAttributesW", k_GetFileAttributesW}, {"GetFileAttributesExW", k_GetFileAttributesExW}, {"CreateDirectoryW", k_CreateDirectoryW},
+  {"GetFileInformationByHandle", k_GetFileInformationByHandle}, {"GetFileInformationByHandleEx", k_GetFileInformationByHandleEx},
+  {"CopyFileW", k_CopyFileW}, {"SetFileInformationByHandle", k_one}, {"SetFileAttributesW", k_one},
+  {"GetLocaleInfoEx", k_one}, {"CreateHardLinkW", unimplemented}, {"CreateSymbolicLinkW", unimplemented},
+  {"GetDateFormatW", unimplemented}, {"GetTimeFormatW", unimplemented},
   {"DeviceIoControl", unimplemented}, {"FormatMessageA", unimplemented},
   {"scriptRegister", v_scriptRegister}, {"scriptRegisterAdditionalThread", v_scriptRegister}, {"scriptUnregister", v_scriptUnregister}, {"scriptWait", v_scriptWait},
   {"keyboardHandlerRegister", v_keyboardHandlerRegister}, {"keyboardHandlerUnregister", v_keyboardHandlerUnregister},

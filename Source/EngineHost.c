@@ -1894,16 +1894,21 @@ static uint64_t pg_f32_arg(float value) { uint32_t bits; memcpy(&bits, &value, 4
 // Keys for mods: the Mod keys pad (and a hardware keyboard) set them from the main thread; mods read
 // them on the game thread, and keyboard handlers get each change there.
 static _Atomic uint8_t pg_asi_keys[256];
+static _Atomic int32_t pg_asi_key_ticks[256];
 static _Atomic uint32_t pg_asi_key_events[64]; static _Atomic uint32_t pg_asi_key_head, pg_asi_key_tail;
 void PGAsiSetKey(int virtualKey, bool down) {
-  if (virtualKey <= 0 || virtualKey > 255 || atomic_load(&pg_asi_keys[virtualKey]) == down) return;
+  if (virtualKey <= 0 || virtualKey > 255) return;
+  if (down) atomic_store(&pg_asi_key_ticks[virtualKey], 15);
+  if (atomic_load(&pg_asi_keys[virtualKey]) == down) return;
   atomic_store(&pg_asi_keys[virtualKey], down);
   uint32_t at = atomic_fetch_add(&pg_asi_key_head, 1);
   atomic_store(&pg_asi_key_events[at % 64], (uint32_t)virtualKey | (down ? 0x100u : 0));
 }
 bool PGAsiModKeys(uint8_t keys[256]) { return pg_asi_polled_keys(keys); }
 void PGAsiGetKeyInfo(PGAsiKeyInfo *info) { pg_asi_key_info(info); }
-static bool pg_asi_key_down(int virtualKey) { return virtualKey > 0 && virtualKey < 256 && atomic_load(&pg_asi_keys[virtualKey]); }
+static bool pg_asi_key_down(int virtualKey) {
+  return virtualKey > 0 && virtualKey < 256 && (atomic_load(&pg_asi_keys[virtualKey]) || atomic_load(&pg_asi_key_ticks[virtualKey]) > 0);
+}
 #if TARGET_OS_SIMULATOR
 // Test (PG_TEST_ASI_KEYS="seconds:key,..."): presses each Windows key for 0.3 s that many seconds after
 // the script mods load, e.g. "20:114" is F3 (Simple Trainer's menu key).
@@ -2295,6 +2300,12 @@ static void pg_asi_frame(w2c_game *instance) {
     while (atomic_load(&pg_asi_key_tail) != atomic_load(&pg_asi_key_head)) {
       uint32_t event = atomic_load(&pg_asi_key_events[atomic_fetch_add(&pg_asi_key_tail, 1) % 64]);
       pg_asi_key((int)(event & 255), event & 0x100);
+    }
+    for (int k = 0; k < 256; k++) {
+      int32_t t = atomic_load(&pg_asi_key_ticks[k]);
+      if (t > 0 && !atomic_load(&pg_asi_keys[k])) {
+        atomic_store(&pg_asi_key_ticks[k], t - 1);
+      }
     }
     pg_asi_tick();
     static unsigned frames; static uint64_t micros, instructions;
