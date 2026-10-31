@@ -143,14 +143,16 @@ final class ModKeysView: UIView, UIKeyInput {
         // the tray opened again over an open menu stays open (it used to close again at once).
         if info.menuVisible && !menuWasVisible && !tray.isHidden && !typing { closeTray() }
         menuWasVisible = info.menuVisible
-        // The D-pad, while a mod menu is on screen, with the keys that mod checks in its menu. Keyboard-handler
-        // mods never say: the number pad, which Script Hook V trainers (Simple Trainer, Menyoo) use.
-        let handlerOnly = info.keyboardHandler && ![0x68, 0x26, 0x62, 0x28].contains(where: { open[$0] != 0 })
-        let usable = { (key: Int) in open[key] != 0 || (handlerOnly && [0x68, 0x62, 0x64, 0x66, 0x65, 0x60].contains(key)) }
-        let pick = { (choices: [Int]) in choices.first(where: usable) ?? 0 }
-        let nav = [pick([0x68, 0x26]), pick([0x62, 0x28]), pick([0x64, 0x25]), pick([0x66, 0x27]), pick([0x65, 0x0D]), pick([0x60, 0x08, 0x1B])]
-        if nav != navKeys { navKeys = nav; buildDpad() }
-        dpad.isHidden = !(info.menuVisible && nav.filter { $0 != 0 }.count >= 2 && tray.isHidden && !typing)
+        // D-pad cho mod menu: Gửi đồng thời cả cụm phím Mũi tên (DVFP F7) và phím Numpad (Menyoo F8)
+        // để người chơi điều khiển mượt mà cả 2 menu F7 và F8 không bao giờ bị lỗi hay kẹt.
+        if dpad.subviews.isEmpty { buildDpad() }
+        let showDpad = info.menuVisible && tray.isHidden && !typing
+        if dpad.isHidden == showDpad {
+            dpad.isHidden = !showDpad
+            if !showDpad {
+                dpad.subviews.compactMap { $0 as? ModDpadButton }.forEach { $0.releaseAllKeys() }
+            }
+        }
         // The tray's keys are laid out again only while it's closed, so nothing moves under a finger.
         let sorted = found.sorted { Self.rank($0) == Self.rank($1) ? $0 < $1 : Self.rank($0) < Self.rank($1) }
         if sorted != keys && tray.isHidden { keys = sorted }
@@ -190,9 +192,17 @@ final class ModKeysView: UIView, UIKeyInput {
         // Back in the cross's lower right corner keeps the whole pad inside the free strip (GTA-69: a Back key
         // to the right of the cross sat on the sprint button).
         let spots: [(CGFloat, CGFloat)] = [(1, 0), (1, 2), (0, 1), (2, 1), (1, 1), (2, 2)]
-        for (i, key) in navKeys.enumerated() where key != 0 {
-            let title = ["▲", "▼", "◀", "▶", "OK", "↩\u{FE0E}"][i]   // text style, not the blue emoji
-            let button = makeKey(key, compact: true, title: title)
+        // Gửi đồng thời cả phím Mũi tên (DVFP F7) và phím Numpad (Menyoo F8)
+        let dpadItems: [(keys: [Int], title: String)] = [
+            ([0x26, 0x68], "▲"),              // Up: Arrow Up (0x26) + Num 8 (0x68)
+            ([0x28, 0x62], "▼"),              // Down: Arrow Down (0x28) + Num 2 (0x62)
+            ([0x25, 0x64], "◀"),              // Left: Arrow Left (0x25) + Num 4 (0x64)
+            ([0x27, 0x66], "▶"),              // Right: Arrow Right (0x27) + Num 6 (0x66)
+            ([0x0D, 0x65], "OK"),             // OK: Return / Enter (0x0D) + Num 5 (0x65)
+            ([0x08, 0x60, 0x1B], "↩\u{FE0E}") // Back: Backspace (0x08) + Num 0 (0x60) + Esc (0x1B)
+        ]
+        for (i, item) in dpadItems.enumerated() {
+            let button = ModDpadButton(keys: item.keys, title: item.title)
             button.frame = CGRect(x: spots[i].0 * (size + gap), y: spots[i].1 * (size + gap), width: size, height: size)
             button.translatesAutoresizingMaskIntoConstraints = true
             dpad.addSubview(button)
@@ -244,6 +254,7 @@ final class ModKeysView: UIView, UIKeyInput {
 
     private func releaseAll() {
         for key in keys { PGAsiSetKey(Int32(key), false) }
+        dpad.subviews.compactMap { $0 as? ModDpadButton }.forEach { $0.releaseAllKeys() }
         latched.removeAll()
     }
 
@@ -443,6 +454,99 @@ private final class ModKeyButton: UIView {
         holdTimer?.invalidate()
         backgroundColor = Self.idle
         if !didLongPress { pressed?(false) }
+    }
+}
+
+/// Nút điều hướng D-pad cho mod menu:
+/// - Khi bấm nhấp (tap): phát đúng 1 nhịp di chuyển dứt khoát.
+/// - Khi "ịn mạnh" (nhấn giữ): tự động cuộn nhanh (auto-repeat) đều đặn theo nhịp 0.08s.
+/// - Khi "không ịn nữa" (nhấc ngón tay): dừng ngay lập tức.
+private final class ModDpadButton: UIView {
+    static let idle = UIColor.black.withAlphaComponent(0.55)
+    static let pressedBg = UIColor.white.withAlphaComponent(0.45)
+
+    let keys: [Int]
+    let title: String
+    private let label = UILabel()
+    private var repeatTimer: Timer?
+    private var initialDelayTimer: Timer?
+    private var releaseTimer: Timer?
+
+    init(keys: [Int], title: String) {
+        self.keys = keys
+        self.title = title
+        super.init(frame: .zero)
+        backgroundColor = Self.idle
+        layer.cornerRadius = 10
+        layer.borderWidth = 1
+        layer.borderColor = UIColor.white.withAlphaComponent(0.28).cgColor
+
+        label.text = title
+        label.textColor = .white
+        label.font = .systemFont(ofSize: 15, weight: .semibold)
+        label.textAlignment = .center
+        label.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(label)
+        NSLayoutConstraint.activate([
+            label.centerXAnchor.constraint(equalTo: centerXAnchor),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+        ])
+        isAccessibilityElement = true
+        accessibilityLabel = title
+        accessibilityTraits = .keyboardKey
+    }
+    required init?(coder: NSCoder) { fatalError() }
+
+    private func pulseKeys() {
+        UISelectionFeedbackGenerator().selectionChanged()
+        for k in keys {
+            PGAsiSetKey(Int32(k), true)
+        }
+        releaseTimer?.invalidate()
+        releaseTimer = Timer.scheduledTimer(withTimeInterval: 0.045, repeats: false) { [weak self] _ in
+            guard let self else { return }
+            for k in self.keys {
+                PGAsiSetKey(Int32(k), false)
+            }
+        }
+    }
+
+    func releaseAllKeys() {
+        releaseTimer?.invalidate()
+        releaseTimer = nil
+        initialDelayTimer?.invalidate()
+        initialDelayTimer = nil
+        repeatTimer?.invalidate()
+        repeatTimer = nil
+        backgroundColor = Self.idle
+        for k in keys {
+            PGAsiSetKey(Int32(k), false)
+        }
+    }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        backgroundColor = Self.pressedBg
+        pulseKeys()
+
+        initialDelayTimer?.invalidate()
+        repeatTimer?.invalidate()
+
+        // Khi ịn mạnh (nhấn giữ) quá 0.32s: bắt đầu tự động cuộn nhanh với nhịp đều đặn 0.08s
+        initialDelayTimer = Timer.scheduledTimer(withTimeInterval: 0.32, repeats: false) { [weak self] _ in
+            guard let self else { return }
+            self.repeatTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
+                self?.pulseKeys()
+            }
+            self.repeatTimer?.fire()
+        }
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        releaseAllKeys()
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        releaseAllKeys()
     }
 }
 

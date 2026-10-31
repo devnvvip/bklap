@@ -161,10 +161,10 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
         if ProcessInfo.processInfo.environment["PG_BENCHMARK"] != nil { return }
         DispatchQueue.main.async { [self] in
             let cap = GameSettings.shared.frameRateCap
-            let limit: Int32 = cap == 120 ? 0 : 1 // 1: khoa cung 60 FPS; 0: engine khong tu han che, man hinh khoa cung 120 FPS
+            let limit: Int32 = 0 // Mở khóa engine limiter để Metal Renderer khóa cứng 80 FPS (đi bộ) / 75 FPS (lái xe)
             applyDisplayFrameRate()
             if thermalFrameLimit != limit {
-                appendLog("Frame limit: \(limit == 0 ? "locked strictly to 120 FPS" : "locked strictly to 60 FPS").")
+                appendLog("Frame limit: locked strictly to \(cap == 120 ? "120" : "80/75") FPS by Metal Renderer.")
                 PGSetFrameLimit(limit)
             }
             thermalFrameLimit = limit

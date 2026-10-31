@@ -220,7 +220,7 @@ enum GraphicsConfiguration {
         defer { pointers.forEach { free($0) } }
         pointers.withUnsafeMutableBufferPointer { buffer in
             buffer.baseAddress!.withMemoryRebound(to: UnsafePointer<CChar>?.self, capacity: buffer.count) {
-                PGConfigureEngine($0, UInt32(buffer.count), Int32(width), Int32(height), settings.frameRateCap == 120 ? 0 : 1)
+                PGConfigureEngine($0, UInt32(buffer.count), Int32(width), Int32(height), 0)
             }
         }
         return "\(preset.title) \(width)×\(height)\(msr ? " MSR" : "") at \(GameSettings.frameRateTitle(settings.frameRateCap))" + (own.isEmpty ? "" : ", own settings: " + own.joined(separator: ", "))

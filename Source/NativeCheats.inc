@@ -282,6 +282,20 @@ static void pg_vehicle_god_mod_tick(w2c_game *instance) {
   pg_test_call(instance, 0xb59e4bd37ae292dbull, 2, (uint64_t[]){vehicle, pg_f32_arg(1.5f)}); // SET_VEHICLE_CHEAT_POWER_INCREASE: 1.5x torque
   pg_test_call(instance, 0x93a3996368c94158ull, 2, (uint64_t[]){vehicle, pg_f32_arg(1.4f)}); // MODIFY_VEHICLE_TOP_SPEED: +40% top speed
 
+  // Tiếng bô xe máy, xe ô tô to rõ đúng loại xe cực đã tai như GTA V PC (ưu tiên âm thanh bô xe, nổ lụp bụp khi sang số/nhả ga)
+  static u32 lastAudioVehicle = 0;
+  static unsigned audioTicks = 0;
+  if (vehicle != lastAudioVehicle || (++audioTicks % 60 == 0)) {
+    lastAudioVehicle = vehicle;
+    // 0xe5564483e407f914: SET_AUDIO_VEHICLE_PRIORITY(vehicle, 3) - Ưu tiên âm thanh bô xe mức cao nhất, nghe to rõ uy lực
+    pg_test_call(instance, 0xe5564483e407f914ull, 2, (uint64_t[]){vehicle, 3});
+    // 0x2be4bc731d039d5a: ENABLE_VEHICLE_EXHAUST_POPS(vehicle, 1) - Bật tiếng bô nổ lụp bụp (exhaust pops / crackles) khi sang số, nhả ga như PC
+    pg_test_call(instance, 0x2be4bc731d039d5aull, 2, (uint64_t[]){vehicle, 1});
+    // Giữ âm thanh nguyên bản của từng dòng xe chuẩn xác, không bị méo tiếng do va chạm
+    pg_test_call(instance, 0x01bb4d577d38bd9eull, 2, (uint64_t[]){vehicle, pg_f32_arg(0.0f)});
+    pg_test_call(instance, 0x59e7b488451f4d3aull, 2, (uint64_t[]){vehicle, pg_f32_arg(0.0f)});
+  }
+
   // Tuyệt đối không bao giờ bị ngã hay văng ra khỏi xe (thắt dây an toàn, không rơi xe máy, không ragdoll)
   pg_test_call(instance, 0x7a6535691b477c48ull, 2, (uint64_t[]){ped, 1}); // SET_PED_CAN_BE_KNOCKED_OFF_VEHICLE: 1 (KNOCKOFFVEH_NEVER)
   pg_test_call(instance, 0xb282749d5e028163ull, 2, (uint64_t[]){ped, 0}); // SET_PED_CAN_BE_KNOCKED_OFF_BIKE: 0
