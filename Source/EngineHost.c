@@ -1898,7 +1898,13 @@ static _Atomic int32_t pg_asi_key_ticks[256];
 static _Atomic uint32_t pg_asi_key_events[64]; static _Atomic uint32_t pg_asi_key_head, pg_asi_key_tail;
 void PGAsiSetKey(int virtualKey, bool down) {
   if (virtualKey <= 0 || virtualKey > 255) return;
-  if (down) atomic_store(&pg_asi_key_ticks[virtualKey], 15);
+  // Chỉ phím chức năng mở menu (F1-F12 như F7, F8) mới cần giữ tick để không miss toggle;
+  // các phím điều hướng (Up/Down/Left/Right, Enter...) nhả ngay theo nhịp ngón tay để không bị nhảy hàng loạt.
+  if (down && (virtualKey >= 0x70 && virtualKey <= 0x7B)) {
+    atomic_store(&pg_asi_key_ticks[virtualKey], 10);
+  } else if (!down) {
+    atomic_store(&pg_asi_key_ticks[virtualKey], 0);
+  }
   if (atomic_load(&pg_asi_keys[virtualKey]) == down) return;
   atomic_store(&pg_asi_keys[virtualKey], down);
   uint32_t at = atomic_fetch_add(&pg_asi_key_head, 1);

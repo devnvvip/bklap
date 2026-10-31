@@ -2171,14 +2171,19 @@ static void present(uint32_t texId) {
 	const int baseFPS = gPacingFPS.load();
 	const int pacingFPS = (baseFPS >= 100) ? 120 : (gPlayerDriving.load() ? 75 : 80);
 	const double targetFrameTime = 1.0 / (double)std::max(pacingFPS, 1);
-	if (sPacingFPS != pacingFPS || sPacingTarget <= 0.0 || fabs(now - sPacingTarget) > 0.1) {
+	if (sPacingFPS != pacingFPS || sPacingTarget <= 0.0 || fabs(now - sPacingTarget) > 0.05) {
 		sPacingFPS = pacingFPS;
 		sPacingTarget = now + targetFrameTime;
 	} else {
 		if (sPacingTarget > now) {
 			pacingSleepUntil(sPacingTarget);
+			sPacingTarget += targetFrameTime;
+		} else {
+			// Bị trễ do quay video / chụp ảnh / tải cảnh nặng:
+			// Reset lại nhịp đếm từ thời điểm hiện tại, triệt tiêu việc chạy dồn ép dồn dập (burst frames)
+			// giúp CPU A18 luôn mát mẻ và không bị tụt FPS đột ngột!
+			sPacingTarget = now + targetFrameTime;
 		}
-		sPacingTarget += targetFrameTime;
 	}
 	now = CACurrentMediaTime();
 	if (R->statPresentAt) { double gap = (now - R->statPresentAt) * 1000; if (gap > 50) R->longFrames++; if (gap > R->worstFrameMs) R->worstFrameMs = gap; }

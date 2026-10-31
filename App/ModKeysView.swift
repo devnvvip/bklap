@@ -223,7 +223,11 @@ final class ModKeysView: UIView, UIKeyInput {
         if down {
             PGAsiSetKey(Int32(key), true)
         } else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            if (0x70...0x7B).contains(key) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                    PGAsiSetKey(Int32(key), false)
+                }
+            } else {
                 PGAsiSetKey(Int32(key), false)
             }
             if !latched.isEmpty { for modifier in latched { PGAsiSetKey(Int32(modifier), false) }; latched.removeAll() }

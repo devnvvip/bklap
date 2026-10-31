@@ -172,9 +172,14 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
     }
     /// Khóa cứng tốc độ làm tươi của màn hình theo lựa chọn: đúng 60 hoặc đúng 120 FPS (ProMotion).
     private func applyDisplayFrameRate() {
-        let screenMax = view.window?.screen.maximumFramesPerSecond ?? 120
-        let rate: Float = GameSettings.shared.frameRateCap == 120 ? Float(min(120, max(screenMax, 60))) : 60
-        displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: rate, maximum: rate, preferred: rate)
+        let screenMax = Float(view.window?.screen.maximumFramesPerSecond ?? 120)
+        if GameSettings.shared.frameRateCap == 120 {
+            let maxRate = min(120, max(screenMax, 60))
+            displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: maxRate, preferred: maxRate)
+        } else {
+            let prefRate = min(80, max(screenMax, 60))
+            displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: min(120, screenMax), preferred: prefRate)
+        }
     }
     private var lastHealth: [UInt64] = [0, 0, 0, 0, 0, 0, 0, 0]
     private var padProof: PGPadState?
