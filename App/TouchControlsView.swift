@@ -497,7 +497,7 @@ final class TouchControlsView: UIView {
     /// A script polls the frontend D-pad up and down (INPUT_FRONTEND_UP/DOWN, 188/187): a shop or script menu is
     /// open (the barber reads both). Down alone isn't a menu: after swipe-camera mouse movement a game script reads
     /// it every frame on foot, and the layout used to switch to the menu one (GTA-86).
-    private var scriptMenu: Bool { polledMission.isSuperset(of: [187, 188]) && context != .menu && !phoneDock }
+    private var scriptMenu: Bool { false }
     private var lastMissionLog = ""
     /// Inputs the help message on screen names (PGControlHints.helpInputs, bit n is input 218 + n): a mission asks for
     /// a button in its help ("Hold RT to grip a tooth" in By the Book) even when it reads the button in a way the poll
@@ -712,7 +712,7 @@ final class TouchControlsView: UIView {
         // side free for the stick: the D-pad sits where the thumb goes.
         // A script menu (shops: barber, clothes, Ammu-Nation, Los Santos Customs) reads the frontend D-pad
         // inputs while player control stays on: it gets the menu layout too, or it can't be used (GTA-43).
-        if (promptActive || scriptMenu) && !editing {
+        if promptActive && !editing {
             // A prompt that reads either stick (the yoga poses read both, GTA-37): no D-pad under the left
             // thumb; an empty spot on the left is the left stick and on the right the right stick.
             // A shop menu (barber, Los Santos Customs) reads the sticks too, but it moves with the frontend D-pad:
