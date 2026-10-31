@@ -3,7 +3,10 @@ import Foundation
 /// Tắt mặc định; bật ở Settings › Plugin First Person trước khi chơi.
 enum BundledDVFP {
  static let name="_newgen_dvfp"
- static var enabled:Bool {UserDefaults.standard.bool(forKey:"NewGenDVFPEnabled")}
+ static var enabled:Bool {
+  if UserDefaults.standard.object(forKey:"NewGenDVFPEnabled") == nil { return true }
+  return UserDefaults.standard.bool(forKey:"NewGenDVFPEnabled")
+ }
  static func prepare() throws {
   let fm=FileManager.default,root=ModInstaller.modsFolder
   try fm.createDirectory(at:root,withIntermediateDirectories:true)

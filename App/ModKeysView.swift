@@ -122,6 +122,7 @@ final class ModKeysView: UIView, UIKeyInput {
         // Mods with a keyboard handler get keys pushed to them and never ask about them: they also get the
         // usual keys (F-keys, number pad, arrows...), and the keys their .ini names.
         var found = (1..<256).filter { (closed[$0] != 0 || open[$0] != 0 || hinted[$0] != 0) && Self.name($0) != nil }
+        for key in [0x77, 0x76] where !found.contains(key) { found.append(key) }
         if info.keyboardHandler { found = Array(Set(found).union(Self.standard)) }
         let nowActive = !found.isEmpty
         if nowActive != active { active = nowActive; activeChanged?(active); if !active { closeTray(); dpad.isHidden = true } }
@@ -136,7 +137,7 @@ final class ModKeysView: UIView, UIKeyInput {
         chips += remembered.filter { !chips.contains($0) && (closed[$0] != 0 || info.keyboardHandler) }
         if chips.isEmpty && !info.keyboardHandler { chips = found.filter { (0x70...0x7B).contains($0) && closed[$0] != 0 } }
         // Menu 1 is F8 (Menyoo), menu 2 is F7 (Dynamic Vehicle First Person); the other keys follow.
-        chips = [0x77, 0x76].filter { chips.contains($0) } + chips.filter { $0 != 0x77 && $0 != 0x76 }
+        chips = [0x77, 0x76] + chips.filter { $0 != 0x77 && $0 != 0x76 }
         menuChips = Array(chips.prefix(4))
         // A menu just came up (say after ☰ F3): the tray makes room for the D-pad. Only when it appears:
         // the tray opened again over an open menu stays open (it used to close again at once).

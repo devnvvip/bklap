@@ -510,6 +510,35 @@ static uint8_t keysClosed[256], keysOpen[256], keysOpening[256], keysHinted[256]
 static uint32_t frameDraws, tickNumber, lastPressed[256];
 static bool menuVisible;
 static uint64_t u_GetAsyncKeyState(void) { int vk = (int)(ARG(0) & 255); polledKeys[vk] = 1; polledThisFrame[vk] = 1; return H.key_down && H.key_down(vk) ? 0x8000 : 0; }
+static uint64_t u_GetForegroundWindow(void) { return 0x10001; }
+static uint64_t u_GetWindowThreadProcessId(void) {
+  uint64_t lpdw = ARG(1);
+  if (lpdw) wr32(lpdw, (uint32_t)k_GetCurrentProcessId());
+  return k_GetCurrentThreadId();
+}
+static uint64_t k_TryAcquireSRWLockExclusive(void) { return 1; }
+static uint64_t o_CoTaskMemFree(void) { if (ARG(0)) H.free(ARG(0)); return 0; }
+static uint64_t k_LocalFree(void) { if (ARG(0)) H.free(ARG(0)); return 0; }
+static uint64_t s_SHGetKnownFolderPath(void) {
+  uint64_t ppsz = ARG(3);
+  if (ppsz) wr64(ppsz, 0);
+  return 0x80004005; // E_FAIL safe fallback
+}
+static uint64_t k_GetFileAttributesW(void) {
+  char n[1024]; wToUtf8(ARG(0), -1, n, sizeof n);
+  char p[1100]; struct stat st; hostPath(n, p, sizeof p);
+  if (stat(p, &st)) { setError(2); return 0xFFFFFFFF; }
+  return S_ISDIR(st.st_mode) ? 0x10 : 0x80;
+}
+static uint64_t k_CreateDirectoryW(void) {
+  char n[1024]; wToUtf8(ARG(0), -1, n, sizeof n);
+  char p[1100]; hostPath(n, p, sizeof p);
+  return mkdir(p, 0777) == 0 || errno == EEXIST ? 1 : 0;
+}
+static uint64_t k_FindFirstFileW(void) {
+  char n[1024]; wToUtf8(ARG(0), -1, n, sizeof n);
+  return findFirst(n, ARG(1), true);
+}
 static uint64_t s_PathFindFileNameA(void) { uint64_t p = ARG(0), last = p; for (uint64_t a = p; *G(a); a++) if (*G(a) == '\\' || *G(a) == '/') last = a + 1; return last; }
 
 // ---- Script Hook V ----------------------------------------------------------------------------
@@ -579,10 +608,13 @@ static const Import imports[] = {
   {"CloseHandle", k_CloseHandle}, {"GetFileSizeEx", k_GetFileSizeEx}, {"SetFilePointerEx", k_SetFilePointerEx}, {"SetEndOfFile", k_SetEndOfFile}, {"FlushFileBuffers", k_one},
   {"GetFileType", k_GetFileType}, {"GetStdHandle", k_GetStdHandle}, {"SetStdHandle", k_one}, {"GetConsoleMode", k_GetConsoleMode}, {"GetConsoleOutputCP", k_GetConsoleOutputCP},
   {"DeleteFileA", k_DeleteFileA}, {"CreateDirectoryA", k_CreateDirectoryA}, {"CopyFileA", k_CopyFileA}, {"GetFileAttributesA", k_GetFileAttributesA},
-  {"FindFirstFileA", k_FindFirstFileA}, {"FindFirstFileExW", k_FindFirstFileExW}, {"FindNextFileA", k_FindNextFileA}, {"FindNextFileW", k_FindNextFileW}, {"FindClose", k_CloseHandle},
+  {"FindFirstFileA", k_FindFirstFileA}, {"FindFirstFileExW", k_FindFirstFileExW}, {"FindFirstFileW", k_FindFirstFileW}, {"FindNextFileA", k_FindNextFileA}, {"FindNextFileW", k_FindNextFileW}, {"FindClose", k_CloseHandle},
   {"GetFullPathNameW", k_GetFullPathNameW}, {"GetCurrentDirectoryW", k_GetCurrentDirectoryW}, {"GetDriveTypeW", k_GetDriveTypeW},
   {"GetPrivateProfileStringA", k_GetPrivateProfileStringA}, {"GetPrivateProfileIntA", k_GetPrivateProfileIntA}, {"WritePrivateProfileStringA", k_WritePrivateProfileStringA},
-  {"GetAsyncKeyState", u_GetAsyncKeyState}, {"GetKeyState", u_GetAsyncKeyState}, {"PathFindFileNameA", s_PathFindFileNameA},
+  {"GetAsyncKeyState", u_GetAsyncKeyState}, {"GetKeyState", u_GetAsyncKeyState}, {"GetForegroundWindow", u_GetForegroundWindow}, {"GetWindowThreadProcessId", u_GetWindowThreadProcessId}, {"PathFindFileNameA", s_PathFindFileNameA},
+  {"TryAcquireSRWLockExclusive", k_TryAcquireSRWLockExclusive}, {"CoTaskMemFree", o_CoTaskMemFree}, {"LocalFree", k_LocalFree}, {"SHGetKnownFolderPath", s_SHGetKnownFolderPath},
+  {"GetFileAttributesW", k_GetFileAttributesW}, {"CreateDirectoryW", k_CreateDirectoryW},
+  {"DeviceIoControl", unimplemented}, {"FormatMessageA", unimplemented},
   {"scriptRegister", v_scriptRegister}, {"scriptRegisterAdditionalThread", v_scriptRegister}, {"scriptUnregister", v_scriptUnregister}, {"scriptWait", v_scriptWait},
   {"keyboardHandlerRegister", v_keyboardHandlerRegister}, {"keyboardHandlerUnregister", v_keyboardHandlerUnregister},
   {"nativeInit", v_nativeInit}, {"nativePush64", v_nativePush64}, {"nativeCall", v_nativeCall}, {"getGlobalPtr", v_getGlobalPtr},

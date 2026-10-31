@@ -702,10 +702,10 @@ final class TouchControlsView: UIView {
     /// A taxi ride with the destination menu (the taxiservice script runs, the player is a passenger).
     private var taxiRide: Bool { hints.passenger && hints.taxiMenu && hints.vehicleModel == ControlStyle.taxi }
     private func baseVisible() -> [ControlButton] {
-        let utility: [ControlButton] = context.driving ? [radio, lights, phone, pause, settings] : [phone, pause, settings]
+        let utility: [ControlButton] = context.driving ? [radio, lights, camera, phone, pause, settings] : [camera, phone, pause, settings]
         let steering: [ControlButton] = GameSettings.shared.steeringButtons ? [steerLeft, steerRight] : []
         if context == .menu { return [pause, settings, up, down, left, right, accept, back, tabLeft, tabRight] }
-        if phoneDock { return [phone, pause, settings, up, down, left, right, accept, back, phoneOption] }
+        if phoneDock { return [camera, phone, pause, settings, up, down, left, right, accept, back, phoneOption] }
         // A prompt (Mission failed, warning screens) waits for Accept/Back; play controls do nothing then.
         // Shop menus that lock player control also need the D-pad to move through the items.
         // A prompt that reads the left stick (INPUT_SCRIPT_LEFT_AXIS_X/Y, e.g. the yoga poses) keeps the left
@@ -725,14 +725,14 @@ final class TouchControlsView: UIView {
             // says so, and without the D-pad there was no way at all, e.g. standing up from a safehouse couch where the
             // stick changes the TV channel (GTA-82), or drinking more whiskey at Trevor's (log 602).
             let contextButton: [ControlButton] = hints.helpContext ? [interact] : []
-            return [pause, settings] + (stick ? [] : [up, down, left, right]) + contextButton + [accept, back, promptOption]
+            return [camera, pause, settings] + (stick ? [] : [up, down, left, right]) + contextButton + [accept, back, promptOption]
         }
         if tvCouch && !editing {
-            return [phone, pause, settings, up, down, left, right] + (hints.helpContext ? [interact] : [])
+            return [camera, phone, pause, settings, up, down, left, right] + (hints.helpContext ? [interact] : [])
         }
         // A taxi ride: the destination menu takes D-pad left/right to change and A to choose.
         if taxiRide && !editing {
-            return [phone, pause, settings, radio, left, right, accept, taxiHurry, taxiStop, enter, lookBack]
+            return [camera, phone, pause, settings, radio, left, right, accept, taxiHurry, taxiStop, enter, lookBack]
         }
         switch context {
         case .onFoot:
@@ -743,7 +743,7 @@ final class TouchControlsView: UIView {
         case .bike:
             return utility + [gas, brake, handbrake, enter, driveBy, driveAim, duck, horn, lookBack] + steering
         case .bicycle:
-            return [phone, pause, settings, radio, gas, brake, handbrake, enter, lookBack] + steering
+            return [camera, phone, pause, settings, radio, gas, brake, handbrake, enter, lookBack] + steering
         case .sub:
             return utility + [gas, brake, enter, dive, surface, lookBack] + steering
         // Aircraft weapons are switched by PGNextAircraftWeapon, separately from the radio.
@@ -871,7 +871,7 @@ final class TouchControlsView: UIView {
         rightStick.idleOrigin = planeStickEnabled ? point(0.80, 0.60) : nil
 
         // Utility bar, top centre: rare actions in the hard-to-reach zone.
-        let order = [radio, lights, phone, pause, settings, mods]
+        let order = [radio, lights, camera, phone, pause, settings, mods]
         let bar = order.filter { visible.contains($0) }
         for (i, button) in bar.enumerated() {
             let offset = (CGFloat(i) - CGFloat(bar.count - 1) / 2) * 54 * scale / safe.width
