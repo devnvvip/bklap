@@ -170,15 +170,16 @@ final class NativePortViewController: UIViewController, MTKViewDelegate {
             thermalFrameLimit = limit
         }
     }
-    /// Khóa cứng tốc độ làm tươi của màn hình theo lựa chọn: đúng 60 hoặc đúng 120 FPS (ProMotion).
+    /// Khóa cứng tốc độ làm tươi của màn hình: Khóa cứng nghiêm ngặt 80 FPS (60 + 20),
+    /// "đánh lừa iPhone" không cho phép hạ xung nhịp ProMotion kể cả khi quay video, chụp ảnh hay chia sẻ màn hình.
     private func applyDisplayFrameRate() {
         let screenMax = Float(view.window?.screen.maximumFramesPerSecond ?? 120)
         if GameSettings.shared.frameRateCap == 120 {
             let maxRate = min(120, max(screenMax, 60))
-            displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: maxRate, preferred: maxRate)
+            displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 120, maximum: maxRate, preferred: maxRate)
         } else {
-            let prefRate = min(80, max(screenMax, 60))
-            displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: min(120, screenMax), preferred: prefRate)
+            let targetFPS: Float = min(80, max(screenMax, 60))
+            displayLink?.preferredFrameRateRange = CAFrameRateRange(minimum: targetFPS, maximum: targetFPS, preferred: targetFPS)
         }
     }
     private var lastHealth: [UInt64] = [0, 0, 0, 0, 0, 0, 0, 0]

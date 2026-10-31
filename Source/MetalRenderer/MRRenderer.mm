@@ -332,11 +332,9 @@ static void commit(CommitReason reason, id<CAMetalDrawable> drawable = nil) {
 		if (R->visNext > OCCLUSION_SLOTS - 1024 && !R->activeOcclusion) R->visNext = 0;
 	}
 	id<MTLCommandBuffer> cb = commandBuffer();
-	// Khóa cứng nghiêm ngặt: Đi bộ 80 FPS, Đi xe giảm đúng 5 FPS (75 FPS), tuyệt đối không giảm hơn.
+	// Xuất hình lập tức không qua afterMinimumDuration để tránh double-stall khi quay video, chụp ảnh hoặc chia sẻ màn hình
 	if (drawable) {
-		const int baseFPS = gPacingFPS.load();
-		const int pacingFPS = (baseFPS >= 100) ? 120 : (gPlayerDriving.load() ? 75 : 80);
-		[cb presentDrawable:drawable afterMinimumDuration:1.0 / (double)std::max(pacingFPS, 1)];
+		[cb presentDrawable:drawable];
 	}
 	uint64_t serial = R->serial++;
 	auto *callbacks = new std::vector<std::function<void()>>();
@@ -1564,11 +1562,10 @@ static void drawInner(const uint32_t *p) {
 		R->lastPipe = pipe;
 		R->pipeDirty = false;
 	}
-	// A pipeline still compiling: wait for it up to 8 ms per frame in all, so a prop isn't missing
-	// for a few frames the first time it's seen; past the budget the draw is skipped as before.
-	if (!pipe->ready.load(std::memory_order_acquire) && R->pipeWaitMs < 8) {
+	// Không bao giờ nghẽn luồng render quá 1 ms khi gặp prop nội thất mới đang compile, giữ FPS 80 tuyệt đối
+	if (!pipe->ready.load(std::memory_order_acquire) && R->pipeWaitMs < 1) {
 		double start = nowMs();
-		while (!pipe->ready.load(std::memory_order_acquire) && R->pipeWaitMs + (nowMs() - start) < 8) usleep(250);
+		while (!pipe->ready.load(std::memory_order_acquire) && R->pipeWaitMs + (nowMs() - start) < 1) usleep(100);
 		R->pipeWaitMs += nowMs() - start;
 	}
 	if (!pipe->ready.load(std::memory_order_acquire)) { drawOutcome = "SKIP-pending"; R->pendingSkips++; R->skipped++; R->pipeDirty = true; return; }

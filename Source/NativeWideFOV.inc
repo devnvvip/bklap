@@ -45,6 +45,16 @@ static void pg_wide_fov_tick(w2c_game *instance) {
   // Báo cho Metal Renderer trạng thái lái xe: Đi bộ 80 FPS, Đi xe 75 FPS (-5 FPS), lock tuyệt đối!
   PGSetPlayerDriving(vehicle != 0);
 
+  // Tối ưu hóa khi ở trong nhà (interior): Tạm dừng render ngoại cảnh thế giới bên ngoài (exterior)
+  // để loại bỏ hoàn toàn việc render trùng lặp gây tụt FPS và giật lag khi di chuyển trong nhà.
+  // Khi bước ra ngoài cửa: tự động tiếp tục render ngoại cảnh bình thường.
+  static uint64_t lastInterior = 999999;
+  uint64_t interior = pg_test_call(instance, 0x2107ba504071a6bbull, 1, (uint64_t[]){ped}); // GET_INTERIOR_FROM_ENTITY
+  if (interior != lastInterior) {
+    lastInterior = interior;
+    pg_test_call(instance, 0x35cce12eaecb4a51ull, 1, (uint64_t[]){interior != 0 ? 1 : 0}); // _SET_PAUSE_EXTERIOR_RENDERING_WHILE_IN_INTERIOR
+  }
+
   // Triệt tiêu rung giật do động cơ tốc độ cao gây ra
   pg_test_call(instance, 0x0ef93e9f3d08c178ull, 1, (uint64_t[]){1}); // STOP_GAMEPLAY_CAM_SHAKING(true)
   pg_test_call(instance, 0xa87e00932db4d85dull, 1, (uint64_t[]){pg_f32_arg(0.0f)}); // SET_GAMEPLAY_CAM_SHAKE_AMPLITUDE(0.0f)

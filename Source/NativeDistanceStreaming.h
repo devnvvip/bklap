@@ -24,16 +24,19 @@ static inline uint64_t pg_distance_available(const PGDistanceStreaming *s,uint64
 }
 static inline void pg_distance_sample(PGDistanceStreaming *s,uint64_t now,bool valid,float x,float y,float z,bool scene){
  if(scene){
-  if(!s->wasScene||now>=s->nextSceneMS){atomic_store(&s->permitUntilMS,now+2000);s->nextSceneMS=now+1000;}
+  if(!s->wasScene||now>=s->nextSceneMS){atomic_store(&s->permitUntilMS,now+30000);s->nextSceneMS=now+1000;}
   s->anchorValid=false;
  }else if(valid&&isfinite(x)&&isfinite(y)&&isfinite(z)){
   if(s->anchorValid){
    double dx=(double)x-s->x,dy=(double)y-s->y,dz=(double)z-s->z;
-   double metres=s->distanceMeters?s->distanceMeters:80;
+   double metres=s->distanceMeters&&s->distanceMeters<30?s->distanceMeters:15;
    if(dx*dx+dy*dy+dz*dz>=metres*metres){
-    atomic_store(&s->permitUntilMS,now+2000);s->x=x;s->y=y;s->z=z;
+    atomic_store(&s->permitUntilMS,now+5000);s->x=x;s->y=y;s->z=z;
    }
-  }else{s->anchorValid=true;s->x=x;s->y=y;s->z=z;}
+  }else{
+   s->anchorValid=true;s->x=x;s->y=y;s->z=z;
+   atomic_store(&s->permitUntilMS,now+30000);
+  }
  }
  s->wasScene=scene;
 }
